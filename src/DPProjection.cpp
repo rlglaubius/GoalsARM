@@ -179,7 +179,7 @@ namespace DP {
 		if (dat.keypop_stay(s, r)) {
 			// Case 1: Key population membership is lifelong. Assumes that an
 			// age-invariant percentage of people enter the key population upon sexual debut.
-			double p_naive(0.0);
+			double p_naive(1.0);
 			for (int a(0); a < DP::N_AGE_ADULT; ++a) {
 				p_naive *= 1.0 - dat.debut_prop(s); // the sexually naive population decays geometrically with age
 				pop.adult_neg(t, s, a, r) = pop.adult_neg(t, s, a, DP::POP_NOSEX) * (1.0 - p_naive);
