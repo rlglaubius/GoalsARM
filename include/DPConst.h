@@ -47,19 +47,32 @@ namespace DP {
 		POP_NEVER = 1, // male or female, never married
 		POP_UNION = 2, // male or female, married or in stable union
 		POP_SPLIT = 3, // male or female, previously married
-		POP_PWID = 4,  // male or female, people who inject drugs
-		POP_FSW = 5,   // female only, female sex worker
-		POP_MSM = 5,   // male only, men who have sex with men
-		POP_KEY = 5,   // male or female, generic placeholder for FSW or MSM
-		POP_TRANS = 6, // male or female (assignment at birth), transgender (POP_TRANS + MALE encodes TGW)
+		POP_PWID  = 4, // male or female, people who inject drugs
+		POP_FSW   = 5, // female only, female sex workers
+		POP_CSW   = 5, // male only, clients of female sex workers
+		POP_BOTH  = 5, // male or female, female sex workers or male clients of female sex workers (TODO: revert to POP_KEY)
+		POP_MSM   = 6, // male only, men who have sex with men
+		POP_TGW   = 7, // male only, transgender women
 
 		// Bounds, use when looping over populations
 		POP_MIN = 0,
-		POP_MAX = 6
+		POP_MAX = 7,
+
+		POP_KEY_MIN = 4, // key population bounds
+		POP_KEY_MAX = 7,
+
+		POP_FEMALE_MIN = 0, // female population bounds
+		POP_FEMALE_MAX = 5,
+
+		POP_MALE_MIN = 0, // male population bounds
+		POP_MALE_MAX = 7,
 	};
 
 	// Count the number of populations
 	const int N_POP = POP_MAX - POP_MIN + 1;
+	const int N_POP_SEX[N_SEX] = {POP_FEMALE_MAX - POP_FEMALE_MIN + 1, POP_MALE_MAX - POP_MALE_MIN + 1};
+
+	const int N_POP_KEY = POP_KEY_MAX - POP_KEY_MIN + 1;
 
 	// Partnership or relationship types ("bond" isn't so verbose)
 	enum bond_t {

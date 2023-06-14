@@ -111,48 +111,35 @@ namespace DP {
 	void Projection::init_baseyear_risk() {
 		const int t(0);
 		int a;
-		double size_curr, size_prev, size_fert, size_pwid, size_kpop;
-		double p_nosex, p_never, p_union, p_split, p_naive, p_trans;
-		double numer, denom;
+		double size_curr, size_prev, size_fert;
+		double p_nosex, p_never, p_union, p_split;
 
-		// This requires that the calling function has inserted the base year population into the NOSEX compartments
-		for (int s(DP::SEX_MIN); s <= DP::SEX_MAX; ++s) {
-			// Calculate the key population sizes
-			size_fert = 0.0;
+		// This requires that the calling function has inserted the base year
+		// population into the NOSEX compartments
+		size_fert = 0.0;
+		for (int s(DP::SEX_MIN); s <= DP::SEX_MAX; ++s)
 			for (a = 0; a < DP::N_AGE_BIRTH; ++a)
 				size_fert += pop.adult_neg(t, s, a, DP::POP_NOSEX);
-			size_pwid = size_fert * dat.keypop_size(s, DP::POP_PWID);
-			size_kpop = size_fert * dat.keypop_size(s, DP::POP_KEY );
 
-			// Distribute FSW, MSM, and PWID
-			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-				pop.adult_neg(t, s, a, DP::POP_KEY ) = size_kpop * dat.keypop_age_dist(s, a, DP::POP_KEY );
-				pop.adult_neg(t, s, a, DP::POP_PWID) = size_pwid * dat.keypop_age_dist(s, a, DP::POP_PWID);
-			}
+		// Initialize sizes of key population
+		init_baseyear_risk_helper(DP::FEMALE, DP::POP_PWID, size_fert);
+		init_baseyear_risk_helper(DP::FEMALE, DP::POP_FSW,  size_fert);
+		init_baseyear_risk_helper(DP::MALE,   DP::POP_PWID, size_fert);
+		init_baseyear_risk_helper(DP::MALE,   DP::POP_CSW,  size_fert);
+		init_baseyear_risk_helper(DP::MALE,   DP::POP_MSM,  size_fert);
+		init_baseyear_risk_helper(DP::MALE,   DP::POP_TGW,  size_fert);
 
-			// Distribute transgender people. This sets the age distribution of transgender
-			// people equal to the age distribution of sexually active people while also
-			// matching the overall input proportion of adults who are transgender.
-			p_naive = 1.0;
-			numer = denom = 0.0;
-			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-				p_naive *= (1.0 - dat.debut_prop(s)); // the sexually naive population decays geometrically at older age
-				pop.adult_neg(t, s, a, DP::POP_TRANS) = (1.0 - p_naive) * pop.adult_neg(t, s, a, DP::POP_NOSEX);
-				denom += pop.adult_neg(t, s, a, DP::POP_TRANS); // denom: number of sexually active adults
-				numer += pop.adult_neg(t, s, a, DP::POP_NOSEX); // numer: number of adults
-			}
-			p_trans = dat.keypop_size(s, DP::POP_TRANS) * numer / denom;
-			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-				pop.adult_neg(t, s, a, DP::POP_TRANS) *= p_trans;
-			}
+		// Deduct key population members from the NOSEX compartment
+		for (a = 0; a < DP::N_AGE_ADULT; ++a) {
+			pop.adult_neg(t, DP::FEMALE, a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::FEMALE, a, DP::POP_PWID);
+			pop.adult_neg(t, DP::FEMALE, a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::FEMALE, a, DP::POP_FSW );
+			pop.adult_neg(t, DP::MALE,   a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::MALE,   a, DP::POP_PWID);
+			pop.adult_neg(t, DP::MALE,   a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::MALE,   a, DP::POP_CSW );
+			pop.adult_neg(t, DP::MALE,   a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::MALE,   a, DP::POP_MSM );
+			pop.adult_neg(t, DP::MALE,   a, DP::POP_NOSEX) -= pop.adult_neg(t, DP::MALE,   a, DP::POP_TGW );
+		}
 
-			// Deduct key population members
-			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-				pop.adult_neg(t, s, a, DP::POP_NOSEX) -= pop.adult_neg(t, s, a, DP::POP_KEY  );
-				pop.adult_neg(t, s, a, DP::POP_NOSEX) -= pop.adult_neg(t, s, a, DP::POP_PWID );
-				pop.adult_neg(t, s, a, DP::POP_NOSEX) -= pop.adult_neg(t, s, a, DP::POP_TRANS);
-			}
-
+		for (int s(DP::SEX_MIN); s <= DP::SEX_MAX; ++s) {
 			a = 0; // distribute 15-year-olds who are not key population members
 			size_curr = pop.adult_neg(t, s, a, DP::POP_NOSEX);
 			pop.adult_neg(t, s, a, DP::POP_NOSEX) = size_curr * (1.0 - dat.debut_prop(s));
@@ -161,7 +148,7 @@ namespace DP {
 
 			for (a = 1; a < DP::N_AGE_ADULT; ++a) {
 				size_prev = size_curr;
-				size_curr = pop.adult_neg(t, s, a, DP::POP_NOSEX); // the calling function injects everyone in the NOSEX group
+				size_curr = pop.adult_neg(t, s, a, DP::POP_NOSEX);
 
 				// get the distribution at age a-1 outside keypops
 				p_nosex = pop.adult_neg(t, s, a - 1, DP::POP_NOSEX) / size_prev;
@@ -175,6 +162,42 @@ namespace DP {
 				pop.adult_neg(t, s, a, DP::POP_SPLIT) = size_curr * ((1.0 - dat.union_prop(s)) * p_split + dat.split_prop() * p_union);
 			}
 		}
+	}
+
+	/// Initialize a key population by age
+	/// @param s The key population sex (FEMALE or MALE)
+	/// @param r The key population behavioral risk group (POP_PWID, POP_FSW, POP_CSW, POP_MSM, or POP_TGW)
+	/// @param size_fert The 15-49 population size
+	/// @pre pop.adult_neg(0, s, a, DP::POP_NOSEX) stores the whole population for sex s and age a. Males
+	/// are not yet disaggregated by circumcision status.
+	/// @post pop.adult_neg(0, s, a, r) is overwritten with the size of population r. pop.adult_neg(0, s, a, DP::POP_NOSEX)
+	/// is not modified, since other populations r > DP::POP_NOSEX may still need to be initialized.
+	void Projection::init_baseyear_risk_helper(const sex_t s, const pop_t r, const double size_fert) {
+		const int t(0);
+		double p_group, n_group(0.0);
+
+		if (dat.keypop_stay(s, r)) {
+			// Case 1: Key population membership is lifelong. Assumes that an
+			// age-invariant percentage of people enter the key population upon sexual debut.
+			double p_naive(0.0);
+			for (int a(0); a < DP::N_AGE_ADULT; ++a) {
+				p_naive *= 1.0 - dat.debut_prop(s); // the sexually naive population decays geometrically with age
+				pop.adult_neg(t, s, a, r) = pop.adult_neg(t, s, a, DP::POP_NOSEX) * (1.0 - p_naive);
+			}
+		} else {
+			// Case 2: Key population membership may be temporary. Age distribution
+		  // if given
+			for (int a(0); a < DP::N_AGE_ADULT; ++a) {
+				pop.adult_neg(t, s, a, r) = pop.adult_neg(t, s, a, DP::POP_NOSEX) * dat.keypop_age_dist(s, a, r);
+			}
+		}
+
+		for (int a(0); a < DP::N_AGE_BIRTH; ++a)
+			n_group += pop.adult_neg(t, s, a, r);
+
+		p_group = dat.keypop_size(s, r) * size_fert / n_group;
+		for (int a(0); a < DP::N_AGE_ADULT; ++a)
+			pop.adult_neg(t, s, a, r) *= p_group;
 	}
 
 	void Projection::init_baseyear_male_circumcision() {
@@ -405,143 +428,194 @@ namespace DP {
 		int a, d, h, r, s, u;
 		double dif_neg[DP::N_SEX_MC][DP::N_POP];
 		double dif_hiv[DP::N_SEX_MC][DP::N_POP][DP::N_HIV_ADULT][DP::N_DTX];
-		double popnum[DP::N_SEX][DP::N_POP];
-		double prop_never, prop_union, prop_split, prop_trans, size;
-		double size_pwid[DP::N_SEX], need_pwid[DP::N_SEX], flow_pwid[DP::N_SEX];
-		double size_kpop[DP::N_SEX], need_kpop[DP::N_SEX], flow_kpop[DP::N_SEX];
-		double size_fert[DP::N_SEX];
+		double size_pop[DP::N_SEX][DP::N_POP];
+		double prop_never, prop_union, prop_split, denom, size_fert;
+		double kp_arrive[DP::N_SEX][DP::N_POP], kp_depart[DP::N_SEX][DP::N_POP];
+		double kp_debut[DP::N_SEX];
+		double kp_exits;
+		double kp_size[DP::N_SEX][DP::N_POP], kp_need[DP::N_SEX][DP::N_POP], kp_recruit[DP::N_SEX][DP::N_POP];
 
-		// Calculate the size of the 15-49 population by sex
-		size_fert[DP::MALE  ] = 0.0;
-		size_fert[DP::FEMALE] = 0.0;
+
+		// Calculate the size of the 15-49 population
+		size_fert = 0.0;
 		for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-			s = sex[u];
 			for (a = 0; a < DP::N_AGE_BIRTH; ++a) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-					size_fert[s] += pop.adult_neg(t, u, a, r);
+					size_fert += pop.adult_neg(t, u, a, r);
 					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
 						for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-							size_fert[s] += pop.adult_hiv(t, u, a, r, h, d);
+							size_fert += pop.adult_hiv(t, u, a, r, h, d);
 				}
 			}
 		}
 
-		for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-			// Count the number in each risk group by sex
+		// Cache key population arrival and departure rates.
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
 			for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-				popnum[DP::FEMALE][r] = 0.0;
-				popnum[DP::MALE  ][r] = 0.0;
-				for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-					s = sex[u];
-					popnum[s][r] += pop.adult_neg(t, u, a, r);
+				kp_arrive[s][r] = 0.0;
+				kp_depart[s][r] = 0.0;
+			}
+
+			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+				if (dat.keypop_stay(s, r)) {
+					kp_arrive[s][r] = dat.keypop_size(s, r);
+					kp_depart[s][r] = 0.0;
+				} else {
+					kp_arrive[s][r] = 0.0; // calculated based on input age distribution later
+					kp_depart[s][r] = dat.keypop_exit_prop(s, r);
+				}
+			}
+		}
+
+		// Calculate the proportion of people who enter key populations at
+		// sexual debut
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
+			kp_debut[s] = 0.0;
+			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++s)
+				kp_debut[s] += kp_arrive[s][r];
+		}
+
+		for (a = 0; a < DP::N_AGE_ADULT; ++a) {
+
+			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
+				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
+					size_pop[s][r] = 0.0;
+
+			// Count the number in each risk group by sex
+			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+				s = sex[u];
+				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					size_pop[s][r] += pop.adult_neg(t, u, a, r);
 					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
 						for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-							popnum[s][r] += pop.adult_hiv(t, u, a, r, h, d);
+							size_pop[s][r] += pop.adult_hiv(t, u, a, r, h, d);
 				}
 			}
 
+			// Calculate population dynamics for populations. Recruitment to key populations with turnover is deferred.
 			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
 				s = sex[u];
-				prop_trans = dat.keypop_size(s, DP::POP_TRANS);
 
-				// Proportions used to allocate turnover from key populations. In case POP_NEVER + POP_UNION + POP_SPLIT = 0
-				// while POP_PWID or POP_KEY > 0, former PWID/MSM/FSW will be distributed evenly between NEVER/UNION/SPLIT
-				size = 3.0 * eps + popnum[s][DP::POP_NEVER] + popnum[s][DP::POP_UNION] + popnum[s][DP::POP_SPLIT];
-				prop_never = (eps + popnum[s][DP::POP_NEVER]) / size;
-				prop_union = (eps + popnum[s][DP::POP_UNION]) / size;
-				prop_split = (eps + popnum[s][DP::POP_SPLIT]) / size;
+				denom = 3.0 * eps + size_pop[s][DP::POP_NEVER] + size_pop[s][DP::POP_UNION] + size_pop[s][DP::POP_SPLIT];
+				prop_never = (eps + size_pop[s][DP::POP_NEVER]) / denom;
+				prop_union = (eps + size_pop[s][DP::POP_UNION]) / denom;
+				prop_split = (eps + size_pop[s][DP::POP_SPLIT]) / denom;
+
+				// Calculate the number of HIV-negative people leaving key populations
+				kp_exits = 0.0;
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
+					kp_exits += pop.adult_neg(t, u, a, r) * kp_depart[s][r];
 
 				dif_neg[u][DP::POP_NOSEX] = -pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s);
 				dif_neg[u][DP::POP_NEVER] = -pop.adult_neg(t, u, a, DP::POP_NEVER) * dat.union_prop(s);
 				dif_neg[u][DP::POP_UNION] = -pop.adult_neg(t, u, a, DP::POP_UNION) * dat.split_prop( );
 				dif_neg[u][DP::POP_SPLIT] = -pop.adult_neg(t, u, a, DP::POP_SPLIT) * dat.union_prop(s);
-				dif_neg[u][DP::POP_PWID ] = -pop.adult_neg(t, u, a, DP::POP_PWID ) * dat.keypop_exit_prop(s, DP::POP_PWID);
-				dif_neg[u][DP::POP_KEY  ] = -pop.adult_neg(t, u, a, DP::POP_KEY  ) * dat.keypop_exit_prop(s, DP::POP_KEY );
-				dif_neg[u][DP::POP_TRANS] = 0.0; // assumed lifelong
 
-				dif_neg[u][DP::POP_NEVER] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - prop_trans) * (1.0 - dat.union_prop(s));
-				dif_neg[u][DP::POP_NEVER] += pop.adult_neg(t, u, a, DP::POP_KEY  ) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_never;
-				dif_neg[u][DP::POP_NEVER] += pop.adult_neg(t, u, a, DP::POP_PWID ) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_never;
-				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - prop_trans) * dat.union_prop(s);
+				dif_neg[u][DP::POP_NEVER] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * (1.0 - dat.union_prop(s));
+				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * dat.union_prop(s);
 				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_NEVER) * dat.union_prop(s) + pop.adult_neg(t, u, a, DP::POP_SPLIT) * dat.union_prop(s);
-				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_KEY  ) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_union;
-				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_PWID ) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_union;
 				dif_neg[u][DP::POP_SPLIT] += pop.adult_neg(t, u, a, DP::POP_UNION) * dat.split_prop();
-				dif_neg[u][DP::POP_SPLIT] += pop.adult_neg(t, u, a, DP::POP_KEY  ) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_split;
-				dif_neg[u][DP::POP_SPLIT] += pop.adult_neg(t, u, a, DP::POP_PWID ) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_split;
-				dif_neg[u][DP::POP_TRANS] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * prop_trans;
+				dif_neg[u][DP::POP_NEVER] += kp_exits * prop_never;
+				dif_neg[u][DP::POP_UNION] += kp_exits * prop_union;
+				dif_neg[u][DP::POP_SPLIT] += kp_exits * prop_split;
 
-				for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					dif_neg[u][r] = -kp_depart[s][r] * pop.adult_neg(t, u, a, r);
+					dif_neg[u][r] += kp_arrive[s][r] * pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s);
+				}
+
+				for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
 					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
+
+						kp_exits = 0.0;
+						for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
+							kp_exits += pop.adult_hiv(t, u, a, r, h, d) * kp_depart[s][r];
+
 						dif_hiv[u][DP::POP_NOSEX][h][d] = -pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s);
 						dif_hiv[u][DP::POP_NEVER][h][d] = -pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d) * dat.union_prop(s);
 						dif_hiv[u][DP::POP_UNION][h][d] = -pop.adult_hiv(t, u, a, DP::POP_UNION, h, d) * dat.split_prop( );
 						dif_hiv[u][DP::POP_SPLIT][h][d] = -pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d) * dat.union_prop(s);
-						dif_hiv[u][DP::POP_PWID ][h][d] = -pop.adult_hiv(t, u, a, DP::POP_PWID , h, d) * dat.keypop_exit_prop(s, DP::POP_PWID);
-						dif_hiv[u][DP::POP_KEY  ][h][d] = -pop.adult_hiv(t, u, a, DP::POP_KEY  , h, d) * dat.keypop_exit_prop(s, DP::POP_KEY );
-						dif_hiv[u][DP::POP_TRANS][h][d] = 0.0;
 
-						dif_hiv[u][DP::POP_NEVER][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - prop_trans) * (1.0 - dat.union_prop(s));
-						dif_hiv[u][DP::POP_NEVER][h][d] += pop.adult_hiv(t, u, a, DP::POP_KEY,   h, d) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_never;
-						dif_hiv[u][DP::POP_NEVER][h][d] += pop.adult_hiv(t, u, a, DP::POP_PWID,  h, d) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_never;
-						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - prop_trans) * dat.union_prop(s);
+						dif_hiv[u][DP::POP_NEVER][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * (1.0 - dat.union_prop(s));
+						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * dat.union_prop(s);
 						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d) * dat.union_prop(s) + pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d) * dat.union_prop(s);
-						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_KEY,   h, d) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_union;
-						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_PWID,  h, d) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_union;
 						dif_hiv[u][DP::POP_SPLIT][h][d] += pop.adult_hiv(t, u, a, DP::POP_UNION, h, d) * dat.split_prop();
-						dif_hiv[u][DP::POP_SPLIT][h][d] += pop.adult_hiv(t, u, a, DP::POP_KEY,   h, d) * dat.keypop_exit_prop(s, DP::POP_KEY ) * prop_split;
-						dif_hiv[u][DP::POP_SPLIT][h][d] += pop.adult_hiv(t, u, a, DP::POP_PWID,  h, d) * dat.keypop_exit_prop(s, DP::POP_PWID) * prop_split;
-						dif_hiv[u][DP::POP_TRANS][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * prop_trans;
-					}
-			}
+						dif_hiv[u][DP::POP_NEVER][h][d] += kp_exits * prop_never;
+						dif_hiv[u][DP::POP_UNION][h][d] += kp_exits * prop_union;
+						dif_hiv[u][DP::POP_SPLIT][h][d] += kp_exits * prop_split;
 
-			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-				size_pwid[s] = 0.0;
-				size_kpop[s] = 0.0;
-				need_pwid[s] = size_fert[s] * dat.keypop_size(s, DP::POP_PWID) * dat.keypop_age_dist(s, a, DP::POP_PWID);
-				need_kpop[s] = size_fert[s] * dat.keypop_size(s, DP::POP_KEY ) * dat.keypop_age_dist(s, a, DP::POP_KEY );
-			}
-
-			// calculate what the keypop sizes would be with no recruitment
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
-				size_pwid[s] += pop.adult_neg(t, u, a, DP::POP_PWID) + dif_neg[u][DP::POP_PWID];
-				size_kpop[s] += pop.adult_neg(t, u, a, DP::POP_KEY ) + dif_neg[u][DP::POP_KEY ];
-				for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
-						size_pwid[s] += pop.adult_hiv(t, u, a, DP::POP_PWID, h, d) + dif_hiv[u][DP::POP_PWID ][h][d];
-						size_kpop[s] += pop.adult_hiv(t, u, a, DP::POP_KEY,  h, d) + dif_hiv[u][DP::POP_KEY  ][h][d];
-					}
-			}
-
-			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-				flow_pwid[s] = std::max(need_pwid[s] - size_pwid[s], 0.0);
-				flow_kpop[s] = std::max(need_kpop[s] - size_kpop[s], 0.0);
-			}
-
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
-				size = popnum[s][DP::POP_NOSEX] + popnum[s][DP::POP_NEVER] + popnum[s][DP::POP_UNION] + popnum[s][DP::POP_SPLIT];
-				for (r = DP::POP_NOSEX; r <= DP::POP_SPLIT; ++r) {
-					dif_neg[u][r] -= (flow_pwid[s] + flow_kpop[s]) * pop.adult_neg(t, u, a, r) / size;
-					dif_neg[u][DP::POP_PWID] += flow_pwid[s] * pop.adult_neg(t, u, a, r) / size;
-					dif_neg[u][DP::POP_KEY ] += flow_kpop[s] * pop.adult_neg(t, u, a, r) / size;
-					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
-							dif_hiv[u][r][h][d] -= (flow_pwid[s] + flow_kpop[s]) * pop.adult_hiv(t, u, a, r, h, d) / size;
-							dif_hiv[u][DP::POP_PWID][h][d] += flow_pwid[s] * pop.adult_hiv(t, u, a, r, h, d) / size;
-							dif_hiv[u][DP::POP_KEY ][h][d] += flow_kpop[s] * pop.adult_hiv(t, u, a, r, h, d) / size;
+						for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+							dif_hiv[u][r][h][d] = -kp_depart[s][r] * pop.adult_hiv(t, u, a, r, h, d);
+							dif_hiv[u][r][h][d] += kp_arrive[s][r] * pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s);
 						}
+					}
 				}
 			}
 
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u)
+			// Calculate recruitment for key populations with turnover
+			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
+						kp_need[s][r] = 0.0;
+						kp_size[s][r] = 0.0;
+				}
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					if (!dat.keypop_stay(s, r)) {
+						kp_need[s][r] = size_fert * dat.keypop_size(s, r) * dat.keypop_age_dist(s, a, r); // number needed to match KP size and age distribution
+					}
+				}
+			}
+
+			// Calculate what KP sizes would be without recruitment
+			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+				s = sex[u];
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					kp_size[s][r] += pop.adult_neg(t, u, a, r) + dif_neg[u][r];
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
+							kp_size[s][r] += pop.adult_hiv(t, u, a, r, h, d) + dif_hiv[u][r][h][d];
+				}
+			}
+
+			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
+					kp_recruit[s][r] = std::max(kp_need[s][r] - kp_size[s][r], 0.0);
+			
+			// Calculate the change in population sizes for KP recruitment
+			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+				s = sex[u];
+
+				denom = eps + size_pop[s][DP::POP_NOSEX] + size_pop[s][DP::POP_NEVER] + size_pop[s][DP::POP_UNION] + size_pop[s][DP::POP_SPLIT];
+				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					if (!dat.keypop_stay(s, r)) {
+						for (int j(DP::POP_NOSEX); j <= DP::POP_SPLIT; ++j) {
+
+							// outflow from general population risk groups (TODO: cache appropriately, then move out of "r" loop)
+							dif_neg[u][j] -= kp_recruit[s][r] * pop.adult_neg(t, u, a, j) / denom;
+							for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+								for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
+									dif_hiv[u][j][h][d] -= kp_recruit[s][r] * pop.adult_hiv(t, u, a, j, h, d) / denom;
+					
+							// inflows to key populations by MC status (TODO: cache appropriately, then move out of "j" loop)
+							dif_neg[u][r] += kp_recruit[s][r] * pop.adult_neg(t, u, a, j) / denom;
+							for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+								for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
+									dif_hiv[u][r][h][d] += kp_recruit[s][r] * pop.adult_hiv(t, u, a, j, h, d) / denom;							
+						}
+					}
+				}
+			}
+
+			// Update the population for age a
+			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+				s = sex[u];
+				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r) {
 					pop.adult_neg(t, u, a, r) += dif_neg[u][r];
 					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
 							pop.adult_hiv(t, u, a, r, h, d) += dif_hiv[u][r][h][d];
 				}
+			}
+
 		}
 	}
 
@@ -867,266 +941,266 @@ namespace DP {
 	}
 
 	void Projection::calc_adult_infections(const int t, const int step) {
-		// TODO: This is quite slow. Can we approximate this well by doing calculations by age groups?
-		// TODO: add code to precalculate quantities that are constant throughout a year (transmission probabilities, maybe mixing and balancing are close enough?)
-		// TODO: needle-based transmission
+		//// TODO: This is quite slow. Can we approximate this well by doing calculations by age groups?
+		//// TODO: add code to precalculate quantities that are constant throughout a year (transmission probabilities, maybe mixing and balancing are close enough?)
+		//// TODO: needle-based transmission
 
-		const double eps = std::numeric_limits<double>::epsilon(); // padding to avoid divide-by-zero
-		const double e_condom = dat.effect_condom();
+		//const double eps = std::numeric_limits<double>::epsilon(); // padding to avoid divide-by-zero
+		//const double e_condom = dat.effect_condom();
 
-		int si, bi, ri, sj, bj, rj; // i refers to HIV- partner, j to the HIV+
-		int ai, ui, uj, cj, hj, dj, vj, qij;
+		//int si, bi, ri, sj, bj, rj; // i refers to HIV- partner, j to the HIV+
+		//int ai, ui, uj, cj, hj, dj, vj, qij;
 
-		double prop_transmit_f, prop_transmit_u, prop_transmit_c;
-		double bal_numer, bal_denom;
-		double bal_mix, per_act, acts_with, acts_wout, num_art, force_group;
-		double canmix_numer[DP::N_SEX][DP::N_POP], prefer_numer[DP::N_SEX][DP::N_POP];
-		double force[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double popsize[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double prev[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_STAGE][DP::N_VL];
-		double new_hiv[DP::N_SEX_MC];
+		//double prop_transmit_f, prop_transmit_u, prop_transmit_c;
+		//double bal_numer, bal_denom;
+		//double bal_mix, per_act, acts_with, acts_wout, num_art, force_group;
+		//double canmix_numer[DP::N_SEX][DP::N_POP], prefer_numer[DP::N_SEX][DP::N_POP];
+		//double force[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//double popsize[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//double prev[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_STAGE][DP::N_VL];
+		//double new_hiv[DP::N_SEX_MC];
 
-		// We calculate transmission in heterosexual marital or cohabiting "unions" separately from "other"
-		// partnerships that include same sex, casual, or commercial sexual partnerships. We make this distinction to
-		// ensure unions and other partnerships are both balanced
-		double mix_other, bal_other, canmix_denom, prefer_denom, assort;
-		double supply_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double supply_pop_other[DP::N_SEX][DP::N_POP];
-		double mix_pop_other[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
-		double force_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//// We calculate transmission in heterosexual marital or cohabiting "unions" separately from "other"
+		//// partnerships that include same sex, casual, or commercial sexual partnerships. We make this distinction to
+		//// ensure unions and other partnerships are both balanced
+		//double mix_other, bal_other, canmix_denom, prefer_denom, assort;
+		//double supply_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//double supply_pop_other[DP::N_SEX][DP::N_POP];
+		//double mix_pop_other[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
+		//double force_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 
-		double mix_union, bal_union, union_denom;
-		double prop_union[DP::N_SEX][DP::N_POP];
-		double supply_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double supply_pop_union[DP::N_SEX][DP::N_POP];
-		double mix_pop_union[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
-		double force_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//double mix_union, bal_union, union_denom;
+		//double prop_union[DP::N_SEX][DP::N_POP];
+		//double supply_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		//double supply_pop_union[DP::N_SEX][DP::N_POP];
+		//double mix_pop_union[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
+		//double force_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 
-		// Transmission probability per partnership ptransmit[si][sj][qij][hj][dj]
-		// si  HIV- partner sex
-		// sj  HIV+ partner sex
-		// qij Partnership type
-		// hj  HIV+ partner infection stage
-		// vj  HIV+ partner viral load
-		// We assume transmission risk is independent of age after adjusting for the strata above
-		double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_HIV_ADULT][DP::N_VL];
+		//// Transmission probability per partnership ptransmit[si][sj][qij][hj][dj]
+		//// si  HIV- partner sex
+		//// sj  HIV+ partner sex
+		//// qij Partnership type
+		//// hj  HIV+ partner infection stage
+		//// vj  HIV+ partner viral load
+		//// We assume transmission risk is independent of age after adjusting for the strata above
+		//double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_HIV_ADULT][DP::N_VL];
 
-		if (step == 0) { // initialization at first step of year
-			for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
-				for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-					ai = bi + DP::AGE_ADULT_MIN;
-					for (ri = 0; ri < DP::N_POP; ++ri)
-						dat.new_hiv_infections(t, ui, ai, ri, 0.0);
-				}
-			}
-		}
+		//if (step == 0) { // initialization at first step of year
+		//	for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
+		//		for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+		//			ai = bi + DP::AGE_ADULT_MIN;
+		//			for (ri = 0; ri < DP::N_POP; ++ri)
+		//				dat.new_hiv_infections(t, ui, ai, ri, 0.0);
+		//		}
+		//	}
+		//}
 
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			prop_union[si][DP::POP_NEVER] = 0.0;
-			prop_union[si][DP::POP_UNION] = 1.0;
-			prop_union[si][DP::POP_SPLIT] = 0.0;
-			prop_union[si][DP::POP_KEY  ] = dat.keypop_married(si, DP::POP_KEY  );
-			prop_union[si][DP::POP_PWID ] = dat.keypop_married(si, DP::POP_PWID );
-			prop_union[si][DP::POP_TRANS] = dat.keypop_married(si, DP::POP_TRANS);
-		}
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	prop_union[si][DP::POP_NEVER] = 0.0;
+		//	prop_union[si][DP::POP_UNION] = 1.0;
+		//	prop_union[si][DP::POP_SPLIT] = 0.0;
+		//	prop_union[si][DP::POP_KEY  ] = dat.keypop_married(si, DP::POP_KEY  );
+		//	prop_union[si][DP::POP_PWID ] = dat.keypop_married(si, DP::POP_PWID );
+		//	prop_union[si][DP::POP_TRANS] = dat.keypop_married(si, DP::POP_TRANS);
+		//}
 
-		// calculate population sizes
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
-				for (ri = DP::POP_MIN; ri <= DP::POP_MAX; ++ri)
-					popsize[si][bi][ri] = 0.0;
-		}
+		//// calculate population sizes
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
+		//		for (ri = DP::POP_MIN; ri <= DP::POP_MAX; ++ri)
+		//			popsize[si][bi][ri] = 0.0;
+		//}
 
-		for (uj = DP::SEX_MC_MIN; uj <= DP::SEX_MC_MAX; ++uj) {
-			sj = sex[uj];
-			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
-				for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
-					popsize[sj][bj][rj] += pop.adult_neg(t, uj, bj, rj);
-					for (cj = DP::HIV_ADULT_MIN; cj <= DP::HIV_ADULT_MAX; ++cj)
-						for (dj = DP::DTX_MIN; dj <= DP::DTX_MAX; ++dj)
-							popsize[sj][bj][rj] += pop.adult_hiv(t, uj, bj, rj, cj, dj);
-				}
-		}
+		//for (uj = DP::SEX_MC_MIN; uj <= DP::SEX_MC_MAX; ++uj) {
+		//	sj = sex[uj];
+		//	for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
+		//		for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
+		//			popsize[sj][bj][rj] += pop.adult_neg(t, uj, bj, rj);
+		//			for (cj = DP::HIV_ADULT_MIN; cj <= DP::HIV_ADULT_MAX; ++cj)
+		//				for (dj = DP::DTX_MIN; dj <= DP::DTX_MAX; ++dj)
+		//					popsize[sj][bj][rj] += pop.adult_hiv(t, uj, bj, rj, cj, dj);
+		//		}
+		//}
 
-		// calculate partnership supply
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
-				for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-					supply_other[si][bi][ri] = popsize[si][bi][ri] * dat.partner_rate(t, si, bi, ri);
-					supply_union[si][bi][ri] = popsize[si][bi][ri] * prop_union[si][ri];
-				}
-		}
+		//// calculate partnership supply
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
+		//		for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//			supply_other[si][bi][ri] = popsize[si][bi][ri] * dat.partner_rate(t, si, bi, ri);
+		//			supply_union[si][bi][ri] = popsize[si][bi][ri] * prop_union[si][ri];
+		//		}
+		//}
 
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-				supply_pop_other[si][ri] = 0.0;
-				supply_pop_union[si][ri] = 0.0;
-				for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-					supply_pop_other[si][ri] += supply_other[si][bi][ri];
-					supply_pop_union[si][ri] += supply_union[si][bi][ri];
-				}
-			}
-		}
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//		supply_pop_other[si][ri] = 0.0;
+		//		supply_pop_union[si][ri] = 0.0;
+		//		for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+		//			supply_pop_other[si][ri] += supply_other[si][bi][ri];
+		//			supply_pop_union[si][ri] += supply_union[si][bi][ri];
+		//		}
+		//	}
+		//}
 
-		// calculate mixing coefficient factors by behavioral risk group
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-				assort = dat.partner_assortativity(si, ri);
-				canmix_denom = eps;
-				prefer_denom = eps;
-				union_denom = eps;
-				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-					for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
-						canmix_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 0); // groups can mix
-						prefer_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 1); // groups prefer to mix
-						canmix_denom += canmix_numer[sj][rj];
-						prefer_denom += prefer_numer[sj][rj];
+		//// calculate mixing coefficient factors by behavioral risk group
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//		assort = dat.partner_assortativity(si, ri);
+		//		canmix_denom = eps;
+		//		prefer_denom = eps;
+		//		union_denom = eps;
+		//		for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+		//			for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
+		//				canmix_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 0); // groups can mix
+		//				prefer_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 1); // groups prefer to mix
+		//				canmix_denom += canmix_numer[sj][rj];
+		//				prefer_denom += prefer_numer[sj][rj];
 
-						mix_pop_union[si][ri][sj][rj] = supply_pop_union[sj][rj] * (si != sj);
-						union_denom += mix_pop_union[si][ri][sj][rj];
-					}
-				}
-				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-					for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
-						mix_pop_other[si][ri][sj][rj] = (1.0 - assort) * canmix_numer[sj][rj] / canmix_denom + assort * prefer_numer[sj][rj] / prefer_denom;
-						mix_pop_union[si][ri][sj][rj] /= union_denom;
-					}
-				}
-			}
-		}
+		//				mix_pop_union[si][ri][sj][rj] = supply_pop_union[sj][rj] * (si != sj);
+		//				union_denom += mix_pop_union[si][ri][sj][rj];
+		//			}
+		//		}
+		//		for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+		//			for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
+		//				mix_pop_other[si][ri][sj][rj] = (1.0 - assort) * canmix_numer[sj][rj] / canmix_denom + assort * prefer_numer[sj][rj] / prefer_denom;
+		//				mix_pop_union[si][ri][sj][rj] /= union_denom;
+		//			}
+		//		}
+		//	}
+		//}
 
-		// pre-calculate HIV prevalence among sex partners
-		for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-			for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
+		//// pre-calculate HIV prevalence among sex partners
+		//for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+		//	for (rj = DP::POP_NEVER; rj <= DP::POP_MAX; ++rj) {
 
-				for (sj = 0; sj < DP::N_SEX; ++sj) { // initialize
-					for (hj = 0; hj < DP::N_STAGE; ++hj)
-						for (vj = 0; vj < DP::N_VL; ++vj)
-							prev[sj][bj][rj][hj][vj] = 0.0;
-				}
+		//		for (sj = 0; sj < DP::N_SEX; ++sj) { // initialize
+		//			for (hj = 0; hj < DP::N_STAGE; ++hj)
+		//				for (vj = 0; vj < DP::N_VL; ++vj)
+		//					prev[sj][bj][rj][hj][vj] = 0.0;
+		//		}
 
-				for (uj = 0; uj < DP::N_SEX_MC; ++uj) { // calculate PLHIV by sex (aggregate males by MC status)
-					sj = sex[uj]; // look up sex sj from sex+MC status uj
-					for (cj = 0; cj < DP::N_HIV_ADULT; ++cj) {
-						hj = stage[cj]; // look up infectiousness stage hj from CD4 category cj
+		//		for (uj = 0; uj < DP::N_SEX_MC; ++uj) { // calculate PLHIV by sex (aggregate males by MC status)
+		//			sj = sex[uj]; // look up sex sj from sex+MC status uj
+		//			for (cj = 0; cj < DP::N_HIV_ADULT; ++cj) {
+		//				hj = stage[cj]; // look up infectiousness stage hj from CD4 category cj
 
-						// add up people who have been on ART at least six months
-						num_art = pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART2) + pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART3);
+		//				// add up people who have been on ART at least six months
+		//				num_art = pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART2) + pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART3);
 
-						prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_UNAWARE);
-						prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_AWARE  );
-						prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_PREV_TX);
-						prev[sj][bj][rj][hj][DP::VL_FAILURE] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART1   );
-						prev[sj][bj][rj][hj][DP::VL_FAILURE] += num_art * (1.0 - dat.art_suppressed_adult(t, sj, bj));
-						prev[sj][bj][rj][hj][DP::VL_SUCCESS] += num_art * dat.art_suppressed_adult(t, sj, bj);
-					}
-				}
+		//				prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_UNAWARE);
+		//				prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_AWARE  );
+		//				prev[sj][bj][rj][hj][DP::VL_OFF_ART] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_PREV_TX);
+		//				prev[sj][bj][rj][hj][DP::VL_FAILURE] += pop.adult_hiv(t, uj, bj, rj, cj, DP::DTX_ART1   );
+		//				prev[sj][bj][rj][hj][DP::VL_FAILURE] += num_art * (1.0 - dat.art_suppressed_adult(t, sj, bj));
+		//				prev[sj][bj][rj][hj][DP::VL_SUCCESS] += num_art * dat.art_suppressed_adult(t, sj, bj);
+		//			}
+		//		}
 
-				for (sj = 0; sj < DP::N_SEX; ++sj) { // convert PLHIV to prevalence
-					for (hj = 0; hj < DP::N_STAGE; ++hj)
-						for (vj = 0; vj < DP::N_VL; ++vj)
-							prev[sj][bj][rj][hj][vj] /= popsize[sj][bj][rj];
-				}
-			}
-		}
+		//		for (sj = 0; sj < DP::N_SEX; ++sj) { // convert PLHIV to prevalence
+		//			for (hj = 0; hj < DP::N_STAGE; ++hj)
+		//				for (vj = 0; vj < DP::N_VL; ++vj)
+		//					prev[sj][bj][rj][hj][vj] /= popsize[sj][bj][rj];
+		//		}
+		//	}
+		//}
 
-		// calculate transmission probabilities
-		// TODO: doi:10.1002/14651858.CD003255 estimated condoms reduced incidence 80%, so could apply
-		// condom effect to incidence rate instead of per-act probabilities. Results should be approximately
-		// the same, but computation may be more efficient (fewer pow calls)
-		// RG 2022-01-25: I tried optimizing by unrolling sex loops so that we could easily skip
-		// the female-to-female transmission = 0 case. This did not improve performance, and may
-		// have actually slowed down calculation.
-		for (qij = 0; qij < DP::N_BOND; ++qij) { // TODO: calculate once per year instead of once per step
-			acts_with = dat.sex_acts(qij) * dat.condom_freq(t, qij);
-			acts_wout = dat.sex_acts(qij) - acts_with;
-			for (si = 0; si < DP::N_SEX; ++si)
-				for (sj = 0; sj < DP::N_SEX; ++sj)
-					for (hj = 0; hj < DP::N_STAGE; ++hj)
-						for (vj = 0; vj < DP::N_VL; ++vj) {
-							per_act = dat.hiv_risk_per_act(si, sj, hj, vj);
-							ptransmit[si][sj][qij][hj][vj] = 1.0 - pow(1.0 - per_act, acts_wout) * pow(1.0 - per_act * e_condom, acts_with);
-						}
-		}
+		//// calculate transmission probabilities
+		//// TODO: doi:10.1002/14651858.CD003255 estimated condoms reduced incidence 80%, so could apply
+		//// condom effect to incidence rate instead of per-act probabilities. Results should be approximately
+		//// the same, but computation may be more efficient (fewer pow calls)
+		//// RG 2022-01-25: I tried optimizing by unrolling sex loops so that we could easily skip
+		//// the female-to-female transmission = 0 case. This did not improve performance, and may
+		//// have actually slowed down calculation.
+		//for (qij = 0; qij < DP::N_BOND; ++qij) { // TODO: calculate once per year instead of once per step
+		//	acts_with = dat.sex_acts(qij) * dat.condom_freq(t, qij);
+		//	acts_wout = dat.sex_acts(qij) - acts_with;
+		//	for (si = 0; si < DP::N_SEX; ++si)
+		//		for (sj = 0; sj < DP::N_SEX; ++sj)
+		//			for (hj = 0; hj < DP::N_STAGE; ++hj)
+		//				for (vj = 0; vj < DP::N_VL; ++vj) {
+		//					per_act = dat.hiv_risk_per_act(si, sj, hj, vj);
+		//					ptransmit[si][sj][qij][hj][vj] = 1.0 - pow(1.0 - per_act, acts_wout) * pow(1.0 - per_act * e_condom, acts_with);
+		//				}
+		//}
 
-		for (si = 0; si < DP::N_SEX; ++si) {
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
-				for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-					force_other[si][bi][ri] = 0.0;
-					force_union[si][bi][ri] = 0.0;
-				}
-		}
+		//for (si = 0; si < DP::N_SEX; ++si) {
+		//	for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
+		//		for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//			force_other[si][bi][ri] = 0.0;
+		//			force_union[si][bi][ri] = 0.0;
+		//		}
+		//}
 
-		// The loop below is hideously expensive. Before putting ANYTHING
-		// in this loop, ask yourself whether it could be precalculated
-		// outside this loop. If not, put the calculation at the highest
-		// level of this loop possible.
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-				for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-					for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-						// we do not model female-to-female transmission, so we only
-						// execute the inner loop when at least one partner is male
-						if (si == DP::MALE || sj == DP::MALE) {
-							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-								for (rj = DP::POP_NEVER; rj <= POP_MAX; ++rj) {
-									// non-marital, non-cohabiting partnerships
-									bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
-									bal_other = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_other = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									if (mix_other > 0.0 && bal_other > 0.0 && popsize[sj][bj][rj] > 0.0) {
-										qij = DP::BOND_TYPE[si][ri][sj][rj];
-										bal_mix = mix_other * bal_other;
+		//// The loop below is hideously expensive. Before putting ANYTHING
+		//// in this loop, ask yourself whether it could be precalculated
+		//// outside this loop. If not, put the calculation at the highest
+		//// level of this loop possible.
+		//for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		//	for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+		//		for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//			for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+		//				// we do not model female-to-female transmission, so we only
+		//				// execute the inner loop when at least one partner is male
+		//				if (si == DP::MALE || sj == DP::MALE) {
+		//					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+		//						for (rj = DP::POP_NEVER; rj <= POP_MAX; ++rj) {
+		//							// non-marital, non-cohabiting partnerships
+		//							bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+		//							bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
+		//							bal_other = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+		//							mix_other = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+		//							if (mix_other > 0.0 && bal_other > 0.0 && popsize[sj][bj][rj] > 0.0) {
+		//								qij = DP::BOND_TYPE[si][ri][sj][rj];
+		//								bal_mix = mix_other * bal_other;
 
-										force_group = 0.0;
-										for (hj = 0; hj < DP::N_STAGE; ++hj)
-											for (vj = 0; vj < DP::N_VL; ++vj)
-												force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj];
-										force_other[si][bi][ri] += bal_mix * force_group;
-									}
+		//								force_group = 0.0;
+		//								for (hj = 0; hj < DP::N_STAGE; ++hj)
+		//									for (vj = 0; vj < DP::N_VL; ++vj)
+		//										force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj];
+		//								force_other[si][bi][ri] += bal_mix * force_group;
+		//							}
 
-									// marital or cohabiting partnerships
-									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
-									bal_union = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_union = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									if (mix_union > 0.0 && bal_union > 0.0 && popsize[sj][bj][rj] > 0.0) {
-										qij = DP::BOND_UNION;
-										bal_mix = mix_union * bal_union;
+		//							// marital or cohabiting partnerships
+		//							bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+		//							bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
+		//							bal_union = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+		//							mix_union = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+		//							if (mix_union > 0.0 && bal_union > 0.0 && popsize[sj][bj][rj] > 0.0) {
+		//								qij = DP::BOND_UNION;
+		//								bal_mix = mix_union * bal_union;
 
-										force_group = 0.0;
-										for (hj = 0; hj < DP::N_STAGE; ++hj)
-											for (vj = 0; vj < DP::N_VL; ++vj)
-												force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj];
-										force_union[si][bi][ri] += bal_mix * force_group;
-									}
-								}
-							}
-						}
-					}
-					force[si][bi][ri] = dat.partner_rate(t, si, bi, ri) * force_other[si][bi][ri] + prop_union[si][ri] * force_union[si][bi][ri];
-				}
-			}
-		}
+		//								force_group = 0.0;
+		//								for (hj = 0; hj < DP::N_STAGE; ++hj)
+		//									for (vj = 0; vj < DP::N_VL; ++vj)
+		//										force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj];
+		//								force_union[si][bi][ri] += bal_mix * force_group;
+		//							}
+		//						}
+		//					}
+		//				}
+		//			}
+		//			force[si][bi][ri] = dat.partner_rate(t, si, bi, ri) * force_other[si][bi][ri] + prop_union[si][ri] * force_union[si][bi][ri];
+		//		}
+		//	}
+		//}
 
-		// update the population and record new infections
-		for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-			ai = bi + DP::AGE_ADULT_MIN;
-			for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
-				prop_transmit_f = 1.0 - exp(-HIV_STEP_SIZE * force[DP::FEMALE][bi][ri]);
-				prop_transmit_u = 1.0 - exp(-HIV_STEP_SIZE * force[DP::MALE  ][bi][ri]);
-				prop_transmit_c = 1.0 - exp(-HIV_STEP_SIZE * force[DP::MALE  ][bi][ri] * (1.0 - dat.effect_vmmc()));
-				new_hiv[DP::FEMALE] = prop_transmit_f * pop.adult_neg(t, DP::FEMALE, bi, ri);
-				new_hiv[DP::MALE_U] = prop_transmit_u * pop.adult_neg(t, DP::MALE_U, bi, ri);
-				new_hiv[DP::MALE_C] = prop_transmit_c * pop.adult_neg(t, DP::MALE_C, bi, ri);
-				for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
-					pop.adult_neg(t, ui, bi, ri) -= new_hiv[ui];
-					pop.adult_hiv(t, ui, bi, ri, DP::HIV_PRIMARY, DP::DTX_UNAWARE) += new_hiv[ui];
-					dat.new_hiv_infections(t, ui, ai, ri, dat.new_hiv_infections(t, ui, ai, ri) + new_hiv[ui]);
-				}
-			}
-		}
+		//// update the population and record new infections
+		//for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+		//	ai = bi + DP::AGE_ADULT_MIN;
+		//	for (ri = DP::POP_NEVER; ri <= DP::POP_MAX; ++ri) {
+		//		prop_transmit_f = 1.0 - exp(-HIV_STEP_SIZE * force[DP::FEMALE][bi][ri]);
+		//		prop_transmit_u = 1.0 - exp(-HIV_STEP_SIZE * force[DP::MALE  ][bi][ri]);
+		//		prop_transmit_c = 1.0 - exp(-HIV_STEP_SIZE * force[DP::MALE  ][bi][ri] * (1.0 - dat.effect_vmmc()));
+		//		new_hiv[DP::FEMALE] = prop_transmit_f * pop.adult_neg(t, DP::FEMALE, bi, ri);
+		//		new_hiv[DP::MALE_U] = prop_transmit_u * pop.adult_neg(t, DP::MALE_U, bi, ri);
+		//		new_hiv[DP::MALE_C] = prop_transmit_c * pop.adult_neg(t, DP::MALE_C, bi, ri);
+		//		for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
+		//			pop.adult_neg(t, ui, bi, ri) -= new_hiv[ui];
+		//			pop.adult_hiv(t, ui, bi, ri, DP::HIV_PRIMARY, DP::DTX_UNAWARE) += new_hiv[ui];
+		//			dat.new_hiv_infections(t, ui, ai, ri, dat.new_hiv_infections(t, ui, ai, ri) + new_hiv[ui]);
+		//		}
+		//	}
+		//}
 
 	}
 

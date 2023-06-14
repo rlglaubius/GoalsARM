@@ -95,21 +95,25 @@ namespace DP {
 		inline double split_prop() const {return _split_prop;}
 		inline void split_prop(const double value) {_split_prop = value;}
 
-		// r must be DP::POP_MSM, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
-		inline double keypop_exit_prop(const int s, const pop_t r) const {return _keypop_exit_prop[s][r - DP::POP_PWID];}
-		inline void keypop_exit_prop(const int s, const pop_t r, const double value) {_keypop_exit_prop[s][r - DP::POP_PWID] = value;}
+		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
+		inline double keypop_exit_prop(const int s, const int r) const {return _keypop_exit_prop[s][r - DP::POP_KEY_MIN];}
+		inline void keypop_exit_prop(const int s, const int r, const double value) {_keypop_exit_prop[s][r - DP::POP_KEY_MIN] = value;}
 
-		// r must be DP::POP_MSM, DP::POP_FSW, DP::POP_KEY, DP::POP_PWID, or DP::POP_TRANS
-		inline double keypop_size(const int s, const pop_t r) const {return _keypop_size[s][r - DP::POP_PWID];}
-		inline void keypop_size(const int s, const pop_t r, const double value) {_keypop_size[s][r - DP::POP_PWID] = value;}
+		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
+		inline double keypop_size(const int s, const int r) const {return _keypop_size[s][r - DP::POP_KEY_MIN];}
+		inline void keypop_size(const int s, const int r, const double value) {_keypop_size[s][r - DP::POP_KEY_MIN] = value;}
 
-		// r must be DP::POP_MSM, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
-		inline double keypop_age_dist(const int s, const int a, const pop_t r) const {return _keypop_age_dist[s][a][r - DP::POP_PWID];}
-		inline void keypop_age_dist(const int s, const int a, const pop_t r, const double value) {_keypop_age_dist[s][a][r - DP::POP_PWID] = value;}
+		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
+		inline bool keypop_stay(const int s, const int r) const {return _keypop_stay[s][r - DP::POP_KEY_MIN];}
+		inline void keypop_stay(const int s, const int r, const bool value) {_keypop_stay[s][r - DP::POP_KEY_MIN] = value;}
 
-		// r must be DP::POP_MSM, DP::POP_FSW, DP::POP_KEY, DP::POP_PWID, or DP::POP_TRANS
-		inline double keypop_married(const int s, const pop_t r) const {return _keypop_married[s][r - DP::POP_PWID];}
-		inline void keypop_married(const int s, const pop_t r, const double value) {_keypop_married[s][r - DP::POP_PWID] = value;}
+		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
+		inline double keypop_age_dist(const int s, const int a, const int r) const {return _keypop_age_dist[s][a][r - DP::POP_KEY_MIN];}
+		inline void keypop_age_dist(const int s, const int a, const int r, const double value) {_keypop_age_dist[s][a][r - DP::POP_KEY_MIN] = value;}
+
+		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
+		inline double keypop_married(const int s, const int r) const {return _keypop_married[s][r - DP::POP_KEY_MIN];}
+		inline void keypop_married(const int s, const int r, const double value) {_keypop_married[s][r - DP::POP_KEY_MIN] = value;}
 
 		// Access using age 15 <= a < 50
 		inline double pasfrs(const int t, const int a) const {return _pasfrs[t][a - DP::AGE_BIRTH_MIN];}
@@ -246,10 +250,11 @@ namespace DP {
 		double _debut_prop[DP::N_SEX]; // proportion who debut sexually per year
 		double _union_prop[DP::N_SEX]; // proportion who marry or start cohabitating per year
 		double _split_prop;            // proportion of marriages/cohabitating partnerships that end per year
-		double _keypop_exit_prop[DP::N_SEX][2];                 // proportion of key pops lost to turnover each year (only used for MSM, FSW, PWID)
-		double _keypop_size[DP::N_SEX][3];                      // proportion of 15-49 sex s who are in population r (only used for MSM, FSW, PWID, TG)
-		double _keypop_age_dist[DP::N_SEX][DP::N_AGE_ADULT][2]; // proportion of 15-49 sex s & pop r who are age a (only use for MSM, FSW, PWID)
-		double _keypop_married[DP::N_SEX][3];                   // proportion of key populations who are married (only used for MSM, FSW, PWID, TG)
+		double _keypop_exit_prop[DP::N_SEX][DP::N_POP_KEY];                 // proportion of key pops lost to turnover each year
+		double _keypop_size[DP::N_SEX][DP::N_POP_KEY];                      // proportion of 15-49 sex s who are in population r
+		bool   _keypop_stay[DP::N_SEX][DP::N_POP_KEY];                      // indicates whether key population membership is lifelong (true) or not (false)
+		double _keypop_age_dist[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP_KEY]; // proportion of 15-49 sex s & pop r who are age a
+		double _keypop_married[DP::N_SEX][DP::N_POP_KEY];                   // proportion of key populations who are married
 
 		bool _direct_incidence; // toggle for direct vs. mechanistic HIV incidence calculation
 
