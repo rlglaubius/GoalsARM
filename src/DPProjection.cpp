@@ -429,13 +429,15 @@ namespace DP {
 		double dif_neg[DP::N_SEX_MC][DP::N_POP];
 		double dif_hiv[DP::N_SEX_MC][DP::N_POP][DP::N_HIV_ADULT][DP::N_DTX];
 		double size_pop[DP::N_SEX][DP::N_POP];
-		double prop_never, prop_union, prop_split, denom, size_fert;
+		double prop_never, prop_union, prop_split, size_fert;
 		double size_fert_sex[DP::N_SEX];
 		double kp_arrive[DP::N_SEX][DP::N_POP], kp_depart[DP::N_SEX][DP::N_POP];
 		double kp_debut[DP::N_SEX];
 		double kp_exits;
 		double kp_size[DP::N_SEX][DP::N_POP], kp_need[DP::N_SEX][DP::N_POP], kp_recruit[DP::N_SEX][DP::N_POP];
+		double numer, denom;
 
+		calc_popsize(t);
 
 		// Calculate the size of the 15-49 population
 		size_fert_sex[DP::FEMALE] = size_fert_sex[DP::MALE] = 0.0;
@@ -461,7 +463,14 @@ namespace DP {
 
 			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
 				if (dat.keypop_stay(s, r)) {
-					kp_arrive[s][r] = dat.keypop_size(s, r) * size_fert / size_fert_sex[s]; // we need to inflate because the size is set as a proportion of both sexes
+
+					// TODO: this aspect of the adjustment is independent of key population. Move outside the loop.
+					numer = denom = 0.0;
+					for (a = DP::AGE_BIRTH_MIN; a <= DP::AGE_BIRTH_MAX; ++a) {
+						numer += dat.popsize(t, s, a);
+						denom += dat.popsize(t, s, a) * (1.0 - pow(1.0 - dat.debut_prop(s), a - DP::AGE_BIRTH_MIN + 1)); // TODO: avoid repeated pow calls by multiplying once each iteration
+					}
+					kp_arrive[s][r] = dat.keypop_size(s, r) * (size_fert / size_fert_sex[s]) * (numer / denom);
 					kp_depart[s][r] = 0.0;
 				} else {
 					kp_arrive[s][r] = 0.0; // calculated based on input age distribution later
