@@ -430,6 +430,7 @@ namespace DP {
 		double dif_hiv[DP::N_SEX_MC][DP::N_POP][DP::N_HIV_ADULT][DP::N_DTX];
 		double size_pop[DP::N_SEX][DP::N_POP];
 		double prop_never, prop_union, prop_split, denom, size_fert;
+		double size_fert_sex[DP::N_SEX];
 		double kp_arrive[DP::N_SEX][DP::N_POP], kp_depart[DP::N_SEX][DP::N_POP];
 		double kp_debut[DP::N_SEX];
 		double kp_exits;
@@ -437,17 +438,19 @@ namespace DP {
 
 
 		// Calculate the size of the 15-49 population
-		size_fert = 0.0;
+		size_fert_sex[DP::FEMALE] = size_fert_sex[DP::MALE] = 0.0;
 		for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+			s = sex[u];
 			for (a = 0; a < DP::N_AGE_BIRTH; ++a) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-					size_fert += pop.adult_neg(t, u, a, r);
+					size_fert_sex[s] += pop.adult_neg(t, u, a, r);
 					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
 						for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-							size_fert += pop.adult_hiv(t, u, a, r, h, d);
+							size_fert_sex[s] += pop.adult_hiv(t, u, a, r, h, d);
 				}
 			}
 		}
+		size_fert = size_fert_sex[DP::FEMALE] + size_fert_sex[DP::MALE];
 
 		// Cache key population arrival and departure rates.
 		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
@@ -458,7 +461,7 @@ namespace DP {
 
 			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
 				if (dat.keypop_stay(s, r)) {
-					kp_arrive[s][r] = dat.keypop_size(s, r);
+					kp_arrive[s][r] = dat.keypop_size(s, r) * size_fert / size_fert_sex[s]; // we need to inflate because the size is set as a proportion of both sexes
 					kp_depart[s][r] = 0.0;
 				} else {
 					kp_arrive[s][r] = 0.0; // calculated based on input age distribution later
@@ -471,7 +474,7 @@ namespace DP {
 		// sexual debut
 		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
 			kp_debut[s] = 0.0;
-			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++s)
+			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
 				kp_debut[s] += kp_arrive[s][r];
 		}
 
@@ -521,7 +524,7 @@ namespace DP {
 
 				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
 					dif_neg[u][r] = -kp_depart[s][r] * pop.adult_neg(t, u, a, r);
-					dif_neg[u][r] += kp_arrive[s][r] * pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s);
+					dif_neg[u][r] += kp_arrive[s][r] * pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s); // TODO: This ignores that kp_arrive is a % of 15-49 (both sexes, not just one)
 				}
 
 				for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
