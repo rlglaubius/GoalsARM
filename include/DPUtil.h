@@ -152,10 +152,10 @@ namespace DP {
 	template<typename popsize_t>
 	void set_keypop_age(ModelData<popsize_t>& dat, const int sex, const pop_t pop, const double loc, const double shp) {
 		boost::math::lognormal dist(loc, shp);
-		for (int age(0); age < DP::N_AGE_BIRTH; ++age)
-			dat.keypop_age_dist(sex, age, pop, (cdf(dist, age+1) - cdf(dist, age)) / (cdf(dist, DP::N_AGE_BIRTH) - cdf(dist, 0)));
-		for (int age(DP::N_AGE_BIRTH); age < DP::N_AGE_ADULT; ++age)
-			dat.keypop_age_dist(sex, age, pop, 0.0);
+		double denom(cdf(dist, DP::N_AGE_ADULT - 1)); // exclude 80+
+		for (int age(0); age < DP::N_AGE_ADULT - 1; ++age)
+			dat.keypop_age_dist(sex, age, pop, (cdf(dist, age+1) - cdf(dist, age)) / denom);
+		dat.keypop_age_dist(sex, DP::AGE_ADULT_MAX, 0.0);
 	}
 
 	template<typename popsize_t>

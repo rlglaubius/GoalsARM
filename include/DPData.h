@@ -253,7 +253,7 @@ namespace DP {
 		double _keypop_exit_prop[DP::N_SEX][DP::N_POP_KEY];                 // proportion of key pops lost to turnover each year
 		double _keypop_size[DP::N_SEX][DP::N_POP_KEY];                      // proportion of 15-49 sex s who are in population r
 		bool   _keypop_stay[DP::N_SEX][DP::N_POP_KEY];                      // indicates whether key population membership is lifelong (true) or not (false)
-		double _keypop_age_dist[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP_KEY]; // proportion of 15-49 sex s & pop r who are age a
+		double _keypop_age_dist[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP_KEY]; // proportion of sex s & pop r who are age a
 		double _keypop_married[DP::N_SEX][DP::N_POP_KEY];                   // proportion of key populations who are married
 
 		bool _direct_incidence; // toggle for direct vs. mechanistic HIV incidence calculation
