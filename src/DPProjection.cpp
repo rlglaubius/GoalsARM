@@ -491,213 +491,225 @@ namespace DP {
 
 		calc_births(t);
 	}
-
+	
 	void Projection::advance_one_year_risk(const int t) {
-		const double eps = 1e-8 / 3.0; // padding term used to avoid divide-by-zero issues without resorting to conditional logic
-		int a, d, h, r, s, u;
-		double dif_neg[DP::N_SEX_MC][DP::N_POP];
-		double dif_hiv[DP::N_SEX_MC][DP::N_POP][DP::N_HIV_ADULT][DP::N_DTX];
-		double size_pop[DP::N_SEX][DP::N_POP];
-		double prop_never, prop_union, prop_split, size_fert;
-		double size_fert_sex[DP::N_SEX];
-		double kp_arrive[DP::N_SEX][DP::N_POP], kp_depart[DP::N_SEX][DP::N_POP];
-		double kp_debut[DP::N_SEX];
-		double kp_exits;
-		double kp_size[DP::N_SEX][DP::N_POP], kp_need[DP::N_SEX][DP::N_POP], kp_recruit[DP::N_SEX][DP::N_POP];
-		double numer, denom;
+		const double eps = std::numeric_limits<double>::epsilon(); // padding term to avoid divide-by-zero
+		const sex_t umin[DP::N_SEX] = {DP::FEMALE, DP::MALE_U};
+		const sex_t umax[DP::N_SEX] = {DP::FEMALE, DP::MALE_C};
 
-		calc_popsize(t);
+		int nt(0), ns(0);
+		int kp_turn_sex[DP::N_SEX * DP::N_POP], kp_stay_sex[DP::N_SEX * DP::N_POP];
+		int kp_turn_pop[DP::N_SEX * DP::N_POP], kp_stay_pop[DP::N_SEX * DP::N_POP];
 
-		// Calculate the size of the 15-49 population
-		size_fert_sex[DP::FEMALE] = size_fert_sex[DP::MALE] = 0.0;
+		int a, d, h, k, r, s, u;
+		boost::multi_array<double, 2> n_total(boost::extents[DP::N_SEX][DP::N_AGE_ADULT]);
+		boost::multi_array<double, 3> n_group(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]);
+		boost::multi_array<double, 3> dneg(boost::extents[DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP]);
+		boost::multi_array<double, 5> dhiv(boost::extents[DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP][DP::N_HIV_ADULT][DP::N_DTX]);
+		double n_nosex, n_never, n_union, n_split, n_active, size_pool, prop_fert, size_fert(0.0);
+		double p_union, p_naive, p_enter, p_leave;
+		double kp_need, kp_have;
+		double kp_pool[DP::N_SEX][DP::N_AGE_ADULT];
+		double p_turn_enter[DP::N_SEX][DP::N_AGE_ADULT]; // % recruitment to key populations with turnover by age
+		double p_stay_enter_pop[DP::N_SEX * DP::N_POP];  // % recruitment to key populations without turnover
+		double p_stay_enter[DP::N_SEX];
+
+		std::fill_n(dneg.data(), dneg.num_elements(), 0.0);
+		std::fill_n(dhiv.data(), dhiv.num_elements(), 0.0);
+		std::fill_n(n_group.data(), n_group.num_elements(), eps);
+		std::fill_n(n_total.data(), n_total.num_elements(), 0.0);
+
+		// Enumerate key populations with and without turnover ("turn" and "stay", respectively)
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
+			for (r = DP::POP_KEY_MIN; r < N_POP_SEX[s]; ++r)
+				if (dat.keypop_stay(s, r)) {
+					kp_stay_sex[ns] = s;
+					kp_stay_pop[ns] = r;
+					++ns;
+				} else {
+					kp_turn_sex[nt] = s;
+					kp_turn_pop[nt] = r;
+					++nt;
+				}
+
+		// Cache population sizes by sex, age, and behavioral risk groups
 		for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
 			s = sex[u];
-			for (a = 0; a < DP::N_AGE_BIRTH; ++a) {
-				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-					size_fert_sex[s] += pop.adult_neg(t, u, a, r);
-					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-						for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-							size_fert_sex[s] += pop.adult_hiv(t, u, a, r, h, d);
-				}
-			}
-		}
-		size_fert = size_fert_sex[DP::FEMALE] + size_fert_sex[DP::MALE];
-
-		// Cache key population arrival and departure rates.
-		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-			for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-				kp_arrive[s][r] = 0.0;
-				kp_depart[s][r] = 0.0;
-			}
-
-			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-				if (dat.keypop_stay(s, r)) {
-
-					// TODO: this aspect of the adjustment is independent of key population. Move outside the loop.
-					numer = denom = 0.0;
-					for (a = DP::AGE_BIRTH_MIN; a <= DP::AGE_BIRTH_MAX; ++a) {
-						numer += dat.popsize(t, s, a);
-						denom += dat.popsize(t, s, a) * (1.0 - pow(1.0 - dat.debut_prop(s), a - DP::AGE_BIRTH_MIN + 1)); // TODO: avoid repeated pow calls by multiplying once each iteration
-					}
-					kp_arrive[s][r] = dat.keypop_size(s, r) * (size_fert / size_fert_sex[s]) * (numer / denom); // TODO: simplify, since numer = size_fert_sex[s]
-					kp_depart[s][r] = 0.0;
-				} else {
-					kp_arrive[s][r] = 0.0; // calculated based on input age distribution later
-					kp_depart[s][r] = dat.keypop_exit_prop(s, r);
-				}
-			}
-		}
-
-		// Calculate the proportion of people who enter key populations at
-		// sexual debut
-		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-			kp_debut[s] = 0.0;
-			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
-				kp_debut[s] += kp_arrive[s][r];
-		}
-
-		for (a = 0; a < DP::N_AGE_ADULT; ++a) {
-
-			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
-				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
-					size_pop[s][r] = 0.0;
-
-			// Count the number in each risk group by sex
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
+			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
 				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					size_pop[s][r] += pop.adult_neg(t, u, a, r);
-					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-						for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-							size_pop[s][r] += pop.adult_hiv(t, u, a, r, h, d);
+					n_group[s][a][r] += pop.adult_neg(t, u, a, r);
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
+							n_group[s][a][r] += pop.adult_hiv(t, u, a, r, h, d);
 				}
 			}
+		}
 
-			// Calculate population dynamics for populations. Recruitment to key populations with turnover is deferred.
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r)
+					n_total[s][a] += n_group[s][a][r];
+		}
+		
+		// Calculate the size of the 15-49 population
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
+			for (a = 0; a < DP::N_AGE_BIRTH; ++a)
+				size_fert += n_total[s][a];
+		}
 
-				denom = 3.0 * eps + size_pop[s][DP::POP_NEVER] + size_pop[s][DP::POP_UNION] + size_pop[s][DP::POP_SPLIT];
-				prop_never = (eps + size_pop[s][DP::POP_NEVER]) / denom;
-				prop_union = (eps + size_pop[s][DP::POP_UNION]) / denom;
-				prop_split = (eps + size_pop[s][DP::POP_SPLIT]) / denom;
+		// Calculate the pool of people that new key population members
+		// are recruited from
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				kp_pool[s][a] = n_group[s][a][DP::POP_NOSEX]
+				              + n_group[s][a][DP::POP_NEVER]
+				              + n_group[s][a][DP::POP_UNION]
+				              + n_group[s][a][DP::POP_SPLIT];
+		}
 
-				// Calculate the number of HIV-negative people leaving key populations
-				kp_exits = 0.0;
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
-					kp_exits += pop.adult_neg(t, u, a, r) * kp_depart[s][r];
+		// Initialize cache used to store recruitment to key populations with turnover
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				p_turn_enter[s][a] = 0.0;
+		}
 
-				dif_neg[u][DP::POP_NOSEX] = -pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s);
-				dif_neg[u][DP::POP_NEVER] = -pop.adult_neg(t, u, a, DP::POP_NEVER) * dat.union_prop(s);
-				dif_neg[u][DP::POP_UNION] = -pop.adult_neg(t, u, a, DP::POP_UNION) * dat.split_prop( );
-				dif_neg[u][DP::POP_SPLIT] = -pop.adult_neg(t, u, a, DP::POP_SPLIT) * dat.union_prop(s);
+		// key populations with turnover
+		for (k = 0; k < nt; ++k) {
+			s = kp_turn_sex[k];
+			r = kp_turn_pop[k];
 
-				dif_neg[u][DP::POP_NEVER] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * (1.0 - dat.union_prop(s));
-				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * dat.union_prop(s);
-				dif_neg[u][DP::POP_UNION] += pop.adult_neg(t, u, a, DP::POP_NEVER) * dat.union_prop(s) + pop.adult_neg(t, u, a, DP::POP_SPLIT) * dat.union_prop(s);
-				dif_neg[u][DP::POP_SPLIT] += pop.adult_neg(t, u, a, DP::POP_UNION) * dat.split_prop();
-				dif_neg[u][DP::POP_NEVER] += kp_exits * prop_never;
-				dif_neg[u][DP::POP_UNION] += kp_exits * prop_union;
-				dif_neg[u][DP::POP_SPLIT] += kp_exits * prop_split;
+			// Since the population size is specified as a % of the 15-49 population,
+			// we need the % of key population members are 15-49.
+			prop_fert = 0.0;
+			for (a = 0; a < DP::N_AGE_BIRTH; ++a)
+				prop_fert += dat.keypop_age_dist(s, a, r);
 
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					dif_neg[u][r] = -kp_depart[s][r] * pop.adult_neg(t, u, a, r);
-					dif_neg[u][r] += kp_arrive[s][r] * pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s); // TODO: This ignores that kp_arrive is a % of 15-49 (both sexes, not just one)
+			for (a = 0; a < DP::N_AGE_ADULT; ++a) {			
+				kp_need = size_fert * dat.keypop_size(s, r) * dat.keypop_age_dist(s, a, r) / prop_fert; // number we should have
+				kp_have = n_group[s][a][r] * (1.0 - dat.keypop_exit_prop(s, r));                        // number we would have after turnover if no new recruits or extra exits
+
+				if (kp_need > kp_have) { // need more recruits
+					p_enter = (kp_need - kp_have) / kp_pool[s][a];
+					p_leave = dat.keypop_exit_prop(s, r);
+				} else {                 // need more exits
+					p_enter = 0.0;
+					p_leave = dat.keypop_exit_prop(s, r) + (kp_have - kp_need) / n_group[s][a][r];
 				}
+				p_turn_enter[s][a] += p_enter;
 
+				// Calculate the changes in key population size and contribution of turnover to general population
+				for (u = umin[s]; u <= umax[s]; ++u) {
+					n_split = pop.adult_neg(t, u, a, DP::POP_SPLIT);
+					n_union = pop.adult_neg(t, u, a, DP::POP_UNION);
+					p_union = n_union / (eps + n_union + n_split);
+					size_pool = pop.adult_neg(t, u, a, DP::POP_NOSEX)
+						        + pop.adult_neg(t, u, a, DP::POP_NEVER)
+						        + pop.adult_neg(t, u, a, DP::POP_UNION)
+						        + pop.adult_neg(t, u, a, DP::POP_SPLIT);
+					dneg[u][a][r] += p_enter * size_pool - p_leave * pop.adult_neg(t, u, a, r);
+					dneg[u][a][DP::POP_UNION] += p_leave * pop.adult_neg(t, u, a, r) * p_union;
+					dneg[u][a][DP::POP_SPLIT] += p_leave * pop.adult_neg(t, u, a, r) * (1.0 - p_union);
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
+						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
+							n_split = pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d);
+							n_union = pop.adult_hiv(t, u, a, DP::POP_UNION, h, d);
+							p_union = n_union / (eps + n_union + n_split);
+							size_pool = pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d)
+								        + pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d)
+								        + pop.adult_hiv(t, u, a, DP::POP_UNION, h, d)
+								        + pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d);
+							dhiv[u][a][r][h][d] += p_enter * size_pool - p_leave * pop.adult_hiv(t, u, a, r, h, d);
+							dhiv[u][a][DP::POP_UNION][h][d] += p_leave * pop.adult_hiv(t, u, a, r, h, d) * p_union;
+							dhiv[u][a][DP::POP_SPLIT][h][d] += p_leave * pop.adult_hiv(t, u, a, r, h, d) * (1.0 - p_union);
+						}
+					}
+				}
+			}
+		}
+
+		// Calculate the proportion of people who enter key populations without turnover
+		// at sexual debut. If we set this to p=dat.keypop_size(s,r), then p*100% of
+		// sexually active people would be in the key population, but since not everyone
+		// is sexually active, that population size would be too small. The calculation
+		// below accounts for the % of the 15-49 population that is sexually active.
+		p_stay_enter[DP::FEMALE] = 0.0;
+		p_stay_enter[DP::MALE  ] = 0.0;
+		for (k = 0; k < ns; ++k) {
+			s = kp_stay_sex[k];
+			r = kp_stay_pop[k];
+			
+			p_naive = 1.0;
+			n_active = 0.0;
+			for (a = 0; a < DP::N_AGE_BIRTH; ++a) {
+				p_naive *= 1.0 - dat.debut_prop(s);
+				n_active += n_total[s][a] * (1.0 - p_naive);
+			}
+			p_stay_enter_pop[k] = dat.keypop_size(s, r) * size_fert / n_active;
+			p_stay_enter[s] += p_stay_enter_pop[k];
+		}
+
+		for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+			s = sex[u];
+			for (a = 0; a < DP::N_AGE_ADULT; ++a) {
+				n_nosex = pop.adult_neg(t, u, a, DP::POP_NOSEX);
+				n_never = pop.adult_neg(t, u, a, DP::POP_NEVER);
+				n_union = pop.adult_neg(t, u, a, DP::POP_UNION);
+				n_split = pop.adult_neg(t, u, a, DP::POP_SPLIT);
+				dneg[u][a][DP::POP_NOSEX] -= n_nosex * (dat.debut_prop(s) + p_turn_enter[s][a]);
+				dneg[u][a][DP::POP_NEVER] += n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s]);
+				dneg[u][a][DP::POP_NEVER] -= n_never * (dat.union_prop(s) + p_turn_enter[s][a]);
+				dneg[u][a][DP::POP_UNION] += n_nosex * dat.debut_prop(s) * dat.union_prop(s);
+				dneg[u][a][DP::POP_UNION] += (n_never + n_split) * dat.union_prop(s);
+				dneg[u][a][DP::POP_UNION] -= n_union * (dat.split_prop() + p_turn_enter[s][a]);
+				dneg[u][a][DP::POP_SPLIT] += n_union * dat.split_prop();
+				dneg[u][a][DP::POP_SPLIT] -= n_split * (dat.union_prop(s) + p_turn_enter[s][a]);
 				for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
 					for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
-
-						kp_exits = 0.0;
-						for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
-							kp_exits += pop.adult_hiv(t, u, a, r, h, d) * kp_depart[s][r];
-
-						dif_hiv[u][DP::POP_NOSEX][h][d] = -pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s);
-						dif_hiv[u][DP::POP_NEVER][h][d] = -pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d) * dat.union_prop(s);
-						dif_hiv[u][DP::POP_UNION][h][d] = -pop.adult_hiv(t, u, a, DP::POP_UNION, h, d) * dat.split_prop( );
-						dif_hiv[u][DP::POP_SPLIT][h][d] = -pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d) * dat.union_prop(s);
-
-						dif_hiv[u][DP::POP_NEVER][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * (1.0 - dat.union_prop(s));
-						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * (1.0 - kp_debut[s]) * dat.union_prop(s);
-						dif_hiv[u][DP::POP_UNION][h][d] += pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d) * dat.union_prop(s) + pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d) * dat.union_prop(s);
-						dif_hiv[u][DP::POP_SPLIT][h][d] += pop.adult_hiv(t, u, a, DP::POP_UNION, h, d) * dat.split_prop();
-						dif_hiv[u][DP::POP_NEVER][h][d] += kp_exits * prop_never;
-						dif_hiv[u][DP::POP_UNION][h][d] += kp_exits * prop_union;
-						dif_hiv[u][DP::POP_SPLIT][h][d] += kp_exits * prop_split;
-
-						for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-							dif_hiv[u][r][h][d] = -kp_depart[s][r] * pop.adult_hiv(t, u, a, r, h, d);
-							dif_hiv[u][r][h][d] += kp_arrive[s][r] * pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s);
-						}
+						n_nosex = pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d);
+						n_never = pop.adult_hiv(t, u, a, DP::POP_NEVER, h, d);
+						n_union = pop.adult_hiv(t, u, a, DP::POP_UNION, h, d);
+						n_split = pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d);
+						dhiv[u][a][DP::POP_NOSEX][h][d] -= n_nosex * (dat.debut_prop(s) + p_turn_enter[s][a]);
+						dhiv[u][a][DP::POP_NEVER][h][d] += n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s]);
+						dhiv[u][a][DP::POP_NEVER][h][d] -= n_never * (dat.union_prop(s) + p_turn_enter[s][a]);
+						dhiv[u][a][DP::POP_UNION][h][d] += n_nosex * dat.debut_prop(s) * dat.union_prop(s);
+						dhiv[u][a][DP::POP_UNION][h][d] += (n_never + n_split) * dat.union_prop(s);
+						dhiv[u][a][DP::POP_UNION][h][d] -= n_union * (dat.split_prop() - p_turn_enter[s][a]);
+						dhiv[u][a][DP::POP_SPLIT][h][d] += n_union * dat.split_prop();
+						dhiv[u][a][DP::POP_SPLIT][h][d] -= n_split * (dat.union_prop(s) + p_turn_enter[s][a]);
 					}
 				}
 			}
-
-			// Calculate recruitment for key populations with turnover
-			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-						kp_need[s][r] = 0.0;
-						kp_size[s][r] = 0.0;
-				}
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					if (!dat.keypop_stay(s, r)) {
-						kp_need[s][r] = size_fert * dat.keypop_size(s, r) * dat.keypop_age_dist(s, a, r); // number needed to match KP size and age distribution
-					}
-				}
-			}
-
-			// Calculate what KP sizes would be without recruitment
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					kp_size[s][r] += pop.adult_neg(t, u, a, r) + dif_neg[u][r];
-					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-							kp_size[s][r] += pop.adult_hiv(t, u, a, r, h, d) + dif_hiv[u][r][h][d];
-				}
-			}
-
-			for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
-					kp_recruit[s][r] = std::max(kp_need[s][r] - kp_size[s][r], 0.0);
-			
-			// Calculate the change in population sizes for KP recruitment
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
-
-				denom = eps + size_pop[s][DP::POP_NOSEX] + size_pop[s][DP::POP_NEVER] + size_pop[s][DP::POP_UNION] + size_pop[s][DP::POP_SPLIT];
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					if (!dat.keypop_stay(s, r)) {
-						for (int j(DP::POP_NOSEX); j <= DP::POP_SPLIT; ++j) {
-
-							// outflow from general population risk groups (TODO: cache appropriately, then move out of "r" loop)
-							dif_neg[u][j] -= kp_recruit[s][r] * pop.adult_neg(t, u, a, j) / denom;
-							for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-								for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-									dif_hiv[u][j][h][d] -= kp_recruit[s][r] * pop.adult_hiv(t, u, a, j, h, d) / denom;
-					
-							// inflows to key populations by MC status (TODO: cache appropriately, then move out of "j" loop)
-							dif_neg[u][r] += kp_recruit[s][r] * pop.adult_neg(t, u, a, j) / denom;
-							for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-								for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-									dif_hiv[u][r][h][d] += kp_recruit[s][r] * pop.adult_hiv(t, u, a, j, h, d) / denom;							
-						}
-					}
-				}
-			}
-
-			// Update the population for age a
-			for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
-				s = sex[u];
-				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					pop.adult_neg(t, u, a, r) += dif_neg[u][r];
-					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
-							pop.adult_hiv(t, u, a, r, h, d) += dif_hiv[u][r][h][d];
-				}
-			}
-
 		}
+
+		// key populations without turnover
+		for (k = 0; k < ns; ++k) {
+			s = kp_stay_sex[k];
+			r = kp_stay_pop[k];
+			for (u = umin[s]; u <= umax[s]; ++u) {
+				for (a = 0; a < DP::N_AGE_ADULT; ++a) {
+					dneg[u][a][r] += pop.adult_neg(t, u, a, DP::POP_NOSEX) * dat.debut_prop(s) * p_stay_enter_pop[k];
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
+						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d) {
+							dhiv[u][a][r][h][d] += pop.adult_hiv(t, u, a, DP::POP_NOSEX, h, d) * dat.debut_prop(s) * p_stay_enter_pop[k];
+						}
+					}
+				}
+			}
+		}
+
+		// Finalize the changes.
+		for (u = DP::SEX_MC_MIN; u <= DP::SEX_MC_MAX; ++u) {
+			s = sex[u];
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				for (r = DP::POP_MIN; r < DP::N_POP_SEX[s]; ++r) {
+					pop.adult_neg(t, u, a, r) += dneg[u][a][r];
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+						for (d = DP::DTX_MIN; d <= DP::DTX_MAX; ++d)
+							pop.adult_hiv(t, u, a, r, h, d) += dhiv[u][a][r][h][d];
+				}
+		}
+
 	}
 
 	void Projection::advance_one_year_male_circumcision(const int t) {
