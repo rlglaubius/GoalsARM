@@ -674,7 +674,7 @@ namespace DP {
 						dhiv[u][a][DP::POP_NEVER][h][d] -= n_never * (dat.union_prop(s) + p_turn_enter[s][a]);
 						dhiv[u][a][DP::POP_UNION][h][d] += n_nosex * dat.debut_prop(s) * dat.union_prop(s);
 						dhiv[u][a][DP::POP_UNION][h][d] += (n_never + n_split) * dat.union_prop(s);
-						dhiv[u][a][DP::POP_UNION][h][d] -= n_union * (dat.split_prop() - p_turn_enter[s][a]);
+						dhiv[u][a][DP::POP_UNION][h][d] -= n_union * (dat.split_prop() + p_turn_enter[s][a]);
 						dhiv[u][a][DP::POP_SPLIT][h][d] += n_union * dat.split_prop();
 						dhiv[u][a][DP::POP_SPLIT][h][d] -= n_split * (dat.union_prop(s) + p_turn_enter[s][a]);
 					}
