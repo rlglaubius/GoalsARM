@@ -112,26 +112,48 @@ namespace DP {
 	/// are not yet disaggregated by circumcision status.
 	void Projection::init_baseyear_risk() {
 		const int t(0);
-		int a, r, s;
-		double size_fert, size_curr, size_prev;
-		double p_naive, p_nosex, p_never, p_union, p_split;
+		int a, k, r, s;
+		double size_fert, size_curr, size_prev, scale;
+		double p_naive, n_nosex, n_never, n_union, n_split, p_union;
 		double kp_need, kp_have, kp_pool;
 		double size_active[DP::N_SEX];
 		double kp_stay_enter[DP::N_SEX][DP::N_POP];
 		double kp_turn_enter[DP::N_SEX][DP::N_AGE_ADULT], kp_turn_leave[DP::N_SEX][DP::N_AGE_ADULT];
 		double p_stay_enter[DP::N_SEX], p_turn_enter;
+		double n_total[DP::N_SEX][DP::N_AGE_ADULT];
+
+		int nt(0), ns(0);
+		int kp_turn_sex[DP::N_SEX * DP::N_POP], kp_stay_sex[DP::N_SEX * DP::N_POP];
+		int kp_turn_pop[DP::N_SEX * DP::N_POP], kp_stay_pop[DP::N_SEX * DP::N_POP];
+
+		// Enumerate key populations with and without turnover ("turn" and "stay", respectively)
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
+			for (r = DP::POP_KEY_MIN; r < N_POP_SEX[s]; ++r)
+				if (dat.keypop_stay(s, r)) {
+					kp_stay_sex[ns] = s;
+					kp_stay_pop[ns] = r;
+					++ns;
+				} else {
+					kp_turn_sex[nt] = s;
+					kp_turn_pop[nt] = r;
+					++nt;
+				}
+
+		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				n_total[s][a] = pop.adult_neg(t, s, a, DP::POP_NOSEX);
 
 		size_fert = 0.0;
 		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s)
 			for (a = 0; a < DP::N_AGE_BIRTH; ++a)
-				size_fert += pop.adult_neg(t, s, a, DP::POP_NOSEX);
+				size_fert += n_total[s][a];
 
 		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
 			size_active[s] = 0.0;
 			p_naive = 1.0;
 			for (a = 0; a < DP::N_AGE_BIRTH; ++a) {
 				p_naive *= 1.0 - dat.debut_prop(s);
-				size_active[s] += pop.adult_neg(t, s, a, DP::POP_NOSEX) * (1.0 - p_naive);
+				size_active[s] += n_total[s][a] * (1.0 - p_naive);
 			}
 		}
 
@@ -142,31 +164,46 @@ namespace DP {
 			}
 		}
 
-		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
-			p_stay_enter[s] = 0.0;
-			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-				if (dat.keypop_stay(s, r)) {
-					// For key populations without turnover, the % recruited at sexual debut
-					// (kp_stay_enter) is proportional to the key population size. This needs
-					// to account for the % of the 15-49 population who are of sex s, and
-					// for the % of those individuals who are sexually active. The number
-					// of 15-49 year-olds of sex s cancels out of the resulting expression.
-					kp_stay_enter[s][r] = dat.keypop_size(s, r) * size_fert / size_active[s];
-					p_stay_enter[s] += kp_stay_enter[s][r];
-				} else {
-					// For key populations with turnover, the helper function initializes
-					// the population by age. We use these to calculate entry and exit rates.
-					init_baseyear_risk_helper(sex_t(s), pop_t(r), size_fert);
-					kp_turn_enter[s][0] += pop.adult_neg(t, s, 0, r);
-					kp_turn_leave[s][0] += pop.adult_neg(t, s, 0, r) * dat.keypop_exit_prop(s, r);
-					kp_stay_enter[s][r] = 0.0;
-				}
+		p_stay_enter[DP::FEMALE] = 0.0;
+		p_stay_enter[DP::MALE  ] = 0.0;
+		for (k = 0; k < ns; ++k) { // key populations without turnover
+			s = kp_stay_sex[k];
+			r = kp_stay_pop[k];
+			kp_stay_enter[s][r] = dat.keypop_size(s, r) * size_fert / size_active[s];
+			p_stay_enter[s] += kp_stay_enter[s][r];
+		}
+
+		for (k = 0; k < nt; ++k) { // key populations with turnover
+			s = kp_turn_sex[k];
+			r = kp_turn_pop[k];
+
+			scale = 0.0;
+			for (a = 0; a < DP::N_AGE_BIRTH; ++a)
+				scale += dat.keypop_age_dist(s, a, r);
+
+			scale = dat.keypop_size(s, r) * size_fert / scale;
+			for (a = 0; a < DP::N_AGE_ADULT; ++a)
+				pop.adult_neg(t, s, a, r) = scale * dat.keypop_age_dist(s, a, r);
+
+			kp_turn_enter[s][0] += pop.adult_neg(t, s, 0, r);
+			kp_turn_leave[s][0] += pop.adult_neg(t, s, 0, r) * dat.keypop_exit_prop(s, r);
+			size_curr = n_total[s][0];
+			for (a = 1; a < DP::N_AGE_ADULT; ++a) { // calculate numbers entering or exiting by age
+				size_prev = size_curr;
+				size_curr = n_total[s][a];
+				kp_need = pop.adult_neg(t, s, a,   r);
+				kp_have = pop.adult_neg(t, s, a-1, r) * (1.0 - dat.keypop_exit_prop(s, r)) * size_curr / size_prev;
+				if (kp_need > kp_have)
+					kp_turn_enter[s][a] += kp_need - kp_have;
+				else
+					kp_turn_leave[s][a] += (kp_have - kp_need) * size_prev / size_curr;
+				kp_turn_leave[s][a] += pop.adult_neg(t, s, a-1, r) * dat.keypop_exit_prop(s,r);
 			}
 		}
 
 		for (s = DP::SEX_MIN; s <= DP::SEX_MAX; ++s) {
 			a = 0;
-			size_curr = pop.adult_neg(t, s, a, DP::POP_NOSEX);
+			size_curr = n_total[s][a];
 			p_turn_enter = kp_turn_enter[s][a] / size_curr;
 
 			pop.adult_neg(t, s, a, DP::POP_NOSEX) = size_curr * (1.0 - dat.debut_prop(s) - p_turn_enter);
@@ -174,99 +211,50 @@ namespace DP {
 			pop.adult_neg(t, s, a, DP::POP_UNION) = size_curr * dat.debut_prop(s) * dat.union_prop(s);
 			pop.adult_neg(t, s, a, DP::POP_SPLIT) = 0.0;
 
-			for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r)
-				if (dat.keypop_stay(s, r))
-					pop.adult_neg(t, s, a, r) = size_curr * dat.debut_prop(s) * kp_stay_enter[s][r];
-
 			for (a = 1; a < DP::N_AGE_ADULT; ++a) {
 				size_prev = size_curr;
-				size_curr = pop.adult_neg(t, s, a, DP::POP_NOSEX);
+				size_curr = n_total[s][a];
 
-				p_nosex = pop.adult_neg(t, s, a - 1, DP::POP_NOSEX) / size_prev;
-				p_never = pop.adult_neg(t, s, a - 1, DP::POP_NEVER) / size_prev;
-				p_union = pop.adult_neg(t, s, a - 1, DP::POP_UNION) / size_prev;
-				p_split = pop.adult_neg(t, s, a - 1, DP::POP_SPLIT) / size_prev;
+				// Cache population sizes, adjusted for relative birth cohort sizes. The
+				// adjustment size_curr / size_prev approximates survival and net migration
+				// to the population aged a-1 in year t-1.
+				n_nosex = pop.adult_neg(t, s, a - 1, DP::POP_NOSEX) * size_curr / size_prev;
+				n_never = pop.adult_neg(t, s, a - 1, DP::POP_NEVER) * size_curr / size_prev;
+				n_union = pop.adult_neg(t, s, a - 1, DP::POP_UNION) * size_curr / size_prev;
+				n_split = pop.adult_neg(t, s, a - 1, DP::POP_SPLIT) * size_curr / size_prev;
+				p_union = n_union / (n_union + n_split);
 
-				// calculate kp_enter and kp_leave for key populations that turn over
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					if (!dat.keypop_stay(s, r)) {
-						// kp_need is the target number if key population members; kp_have is the
-						// number we would have if there were no new recruits.
-						// If we need more than we have, we add recruitment.
-						// If we have more than we need, we add excess exits.
-						// The recurring (size_curr / size_prev) adjusts for survival and net migration when
-						// approximating the size of the birth cohort one year previous.
-						kp_need = pop.adult_neg(t, s, a,   r);
-						kp_have = pop.adult_neg(t, s, a-1, r) * (1.0 - dat.keypop_exit_prop(s, r)) * size_curr / size_prev;
-						if (kp_need > kp_have)
-							kp_turn_enter[s][a] += kp_need - kp_have;
-						else
-							kp_turn_leave[s][a] += (kp_have - kp_need) / (size_curr / size_prev);
-						kp_turn_leave[s][a] += pop.adult_neg(t, s, a - 1, r) * dat.keypop_exit_prop(s, r);
-					}
-				}
-
-				kp_pool = size_curr * (p_nosex + p_never + p_union + p_split);
+				kp_pool = n_nosex + n_never + n_union + n_split;
 				p_turn_enter = kp_turn_enter[s][a] / kp_pool;
 
 				// GP
-				pop.adult_neg(t, s, a, DP::POP_NOSEX) = size_curr * p_nosex * (1.0 - dat.debut_prop(s) - p_turn_enter);
-				pop.adult_neg(t, s, a, DP::POP_NEVER) = size_curr * p_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s])
-					                                    + size_curr * p_never * (1.0 - dat.union_prop(s) - p_turn_enter);
-				pop.adult_neg(t, s, a, DP::POP_UNION) = size_curr * p_nosex * dat.debut_prop(s) * dat.union_prop(s)
-					                                    + size_curr * p_never * dat.union_prop(s)
-					                                    + size_curr * p_union * (1.0 - dat.split_prop() - p_turn_enter)
-					                                    + size_curr * p_split * dat.union_prop(s)
-					                                    + (size_curr / size_prev) * kp_turn_leave[s][a] * p_union / (p_union + p_split);
-				pop.adult_neg(t, s, a, DP::POP_SPLIT) = size_curr * p_union * dat.split_prop()
-					                                    + size_curr * p_split * (1.0 - dat.union_prop(s) - p_turn_enter)
-					                                    + (size_curr / size_prev) * kp_turn_leave[s][a] * p_split / (p_union + p_split);
-
-				// KP lifelong
-				for (r = DP::POP_KEY_MIN; r < DP::N_POP_SEX[s]; ++r) {
-					if (dat.keypop_stay(s, r)) {
-						pop.adult_neg(t, s, a, r) = size_curr * pop.adult_neg(t, s, a - 1, r) / size_prev
-							                        + size_curr * p_nosex * dat.debut_prop(s) * kp_stay_enter[s][r];
-					}
-				}
-
-			}
-		}
-	}
-
-	/// Initialize a key population by age
-	/// @param s The key population sex (FEMALE or MALE)
-	/// @param r The key population behavioral risk group (POP_PWID, POP_FSW, POP_CSW, POP_MSM, or POP_TGW)
-	/// @param size_fert The 15-49 population size
-	/// @pre pop.adult_neg(0, s, a, DP::POP_NOSEX) stores the whole population for sex s and age a. Males
-	/// are not yet disaggregated by circumcision status.
-	/// @post pop.adult_neg(0, s, a, r) is overwritten with the size of population r. pop.adult_neg(0, s, a, DP::POP_NOSEX)
-	/// is not modified, since other populations r > DP::POP_NOSEX may still need to be initialized.
-	void Projection::init_baseyear_risk_helper(const sex_t s, const pop_t r, const double size_fert) {
-		const int t(0);
-		double p_group, n_group(0.0);
-
-		if (dat.keypop_stay(s, r)) {
-			// Case 1: Key population membership is lifelong. Assumes that an
-			// age-invariant percentage of people enter the key population upon sexual debut.
-			double p_naive(1.0);
-			for (int a(0); a < DP::N_AGE_ADULT; ++a) {
-				p_naive *= 1.0 - dat.debut_prop(s); // the sexually naive population decays geometrically with age
-				pop.adult_neg(t, s, a, r) = pop.adult_neg(t, s, a, DP::POP_NOSEX) * (1.0 - p_naive);
-			}
-		} else {
-			// Case 2: Key population with turnover. Age distribution is given.
-			for (int a(0); a < DP::N_AGE_ADULT; ++a) {
-				pop.adult_neg(t, s, a, r) = dat.keypop_age_dist(s, a, r);
+				pop.adult_neg(t, s, a, DP::POP_NOSEX) = n_nosex * (1.0 - dat.debut_prop(s) - p_turn_enter);
+				pop.adult_neg(t, s, a, DP::POP_NEVER) = n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s])
+					                                    + n_never * (1.0 - dat.union_prop(s) - p_turn_enter);
+				pop.adult_neg(t, s, a, DP::POP_UNION) = n_nosex * dat.debut_prop(s) * dat.union_prop(s)
+					                                    + n_never * dat.union_prop(s)
+					                                    + n_union * (1.0 - dat.split_prop() - p_turn_enter)
+					                                    + n_split * dat.union_prop(s)
+					                                    + (size_curr / size_prev) * kp_turn_leave[s][a] * p_union;
+				pop.adult_neg(t, s, a, DP::POP_SPLIT) = n_union * dat.split_prop()
+					                                    + n_split * (1.0 - dat.union_prop(s) - p_turn_enter)
+					                                    + (size_curr / size_prev) * kp_turn_leave[s][a] * (1.0 - p_union);
 			}
 		}
 
-		for (int a(0); a < DP::N_AGE_BIRTH; ++a)
-			n_group += pop.adult_neg(t, s, a, r);
-
-		p_group = dat.keypop_size(s, r) * size_fert / n_group;
-		for (int a(0); a < DP::N_AGE_ADULT; ++a)
-			pop.adult_neg(t, s, a, r) *= p_group;
+		// Key populations without turnover
+		for (k = 0; k < ns; ++k) {
+			s = kp_stay_sex[k];
+			r = kp_stay_pop[k];
+			size_curr = n_total[s][0];
+			pop.adult_neg(t, s, 0, r) = size_curr * dat.debut_prop(s) * kp_stay_enter[s][r];
+			for (a = 1; a < DP::N_AGE_ADULT; ++a) {
+				size_prev = size_curr;
+				size_curr = n_total[s][a];
+				pop.adult_neg(t, s, a, r) = pop.adult_neg(t, s, a - 1, r) + pop.adult_neg(t, s, a-1, DP::POP_NOSEX) * dat.debut_prop(s) * kp_stay_enter[s][r];
+				pop.adult_neg(t, s, a, r) *= size_curr / size_prev; // adjust for relative birth cohort sizes
+			}
+		}
 	}
 
 	void Projection::init_baseyear_male_circumcision() {

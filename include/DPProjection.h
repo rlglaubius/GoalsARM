@@ -37,7 +37,6 @@ namespace DP {
 
 		void init_baseyear_population();
 		void init_baseyear_risk();
-		void init_baseyear_risk_helper(const sex_t sex, const pop_t keypop, const double size_fert);
 		void init_baseyear_male_circumcision();
 		void calc_births_baseyear();
 		void calc_deaths_baseyear();
