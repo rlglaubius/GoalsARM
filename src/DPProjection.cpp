@@ -1177,13 +1177,13 @@ namespace DP {
 		}
 
 		// Divide by population sizes to convert PLHIV to prevalence in potential sex partners
-		for (sj = 0; sj < DP::N_SEX; ++sj)
+		for (sj = 0; sj < DP::N_SEX; ++sj) {
 			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
-				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj)
 					for (hj = 0; hj < DP::N_STAGE; ++hj)
 						for (vj = 0; vj < DP::N_VL; ++vj)
 							prev[sj][bj][rj][hj][vj] /= popsize[sj][bj][rj];
-				}
+		}
 
 		// calculate transmission probabilities
 		// TODO: doi:10.1002/14651858.CD003255 estimated condoms reduced incidence 80%, so could apply
