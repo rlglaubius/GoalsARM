@@ -1158,7 +1158,7 @@ namespace DP {
 							prev[sj][bj][rj][hj][vj] = 0.0;
 		}
 
-		// pre-calculate HIV prevalence among potential sex partners
+		// pre-calculate PLHIV among potential sex partners
 		for (uj = 0; uj < DP::N_SEX_MC; ++uj) {
 			sj = sex[uj];
 			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
@@ -1172,12 +1172,18 @@ namespace DP {
 						prev[sj][bj][rj][hj][DP::VL_FAILURE] += num_art * (1.0 - dat.art_suppressed_adult(t, sj, bj));
 						prev[sj][bj][rj][hj][DP::VL_SUCCESS] += num_art * dat.art_suppressed_adult(t, sj, bj);
 					}
-					for (hj = 0; hj < DP::N_STAGE; ++hj)
-						for (vj = 0; vj < DP::N_VL; ++vj)
-							prev[sj][bj][rj][hj][vj] /= popsize[sj][bj][rj]; // TODO: are we doing N_STAGE * N_VL-fold more divisions than needed? Force can be rearranged as 1/N\sum_i Y_i instead of \sum_i (Y_i/N)
 				}
 			}
 		}
+
+		// Divide by population sizes to convert PLHIV to prevalence in potential sex partners
+		for (sj = 0; sj < DP::N_SEX; ++sj)
+			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+					for (hj = 0; hj < DP::N_STAGE; ++hj)
+						for (vj = 0; vj < DP::N_VL; ++vj)
+							prev[sj][bj][rj][hj][vj] /= popsize[sj][bj][rj];
+				}
 
 		// calculate transmission probabilities
 		// TODO: doi:10.1002/14651858.CD003255 estimated condoms reduced incidence 80%, so could apply
@@ -1247,7 +1253,7 @@ namespace DP {
 										force_group = 0.0;
 										for (hj = 0; hj < DP::N_STAGE; ++hj)
 											for (vj = 0; vj < DP::N_VL; ++vj)
-												force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj];
+												force_group += ptransmit[si][sj][qij][hj][vj] * prev[sj][bj][rj][hj][vj]; // TODO: calc independent of age bi. Cache?
 										force_union[si][bi][ri] += bal_mix * force_group;
 									}
 								}
