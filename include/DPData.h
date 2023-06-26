@@ -69,6 +69,11 @@ namespace DP {
 		/// @param ptr_assort pointer to an array of assortativity values by sex and behavioral risk group
 		void share_pop_assortativity(double* ptr_assort);
 
+		/// Transfer memory for storing the risk of HIV transmission from needle sharing
+		/// @param ptr_pwid_infection_force pointer to the force of infection by year and sex among PWID who share needles
+		/// @param ptr_needle_sharing pointer to the proportion of PWID who share needles by year
+		void share_pwid_risk(double* ptr_pwid_infection_force, double* ptr_needle_sharing);
+
 		// +=+ Accessors +=+
 		// In accessors, time t=0 denotes year year_start
 		inline double basepop(const int s, const int a) const {return _basepop[s][a];}
@@ -172,6 +177,12 @@ namespace DP {
 
 		inline double condom_freq(const int t, const int bond) const {return _condom_freq[t][bond];}
 		inline void condom_freq(const int t, const int bond, const double value) {_condom_freq[t][bond] = value;}
+
+		inline double pwid_infection_force(const int t, const int s) const {return (*_pwid_infection_force)[t][s];}
+		inline void pwid_infection_force(const int t, const int s, const double value) {return (*_pwid_infection_force)[t][s] = value;}
+
+		inline double pwid_needle_sharing(const int t) const {return (*_pwid_needle_sharing)[t];}
+		inline void pwid_needle_sharing(const int t, const double value) {return (*_pwid_needle_sharing)[t] = value;}
 
 		inline double hiv_dist(const int s, const int a, const int h) const {return _hiv_dist[s][a][h];}
 		inline void hiv_dist(const int s, const int a, const int h, const double value) {_hiv_dist[s][a][h] = value;}
@@ -286,6 +297,10 @@ namespace DP {
 		// Model inputs - sexual behavior within partnerships
 		double _sex_acts[DP::N_BOND]; // sex acts per partner per year
 		year_bond_t _condom_freq;     // condom use at last sex
+
+		// Model inputs - HIV risk from unsafe injecting practices
+		year_sex_ref_t*    _pwid_infection_force; // Force of infection acting on PWID who share needles
+		time_series_ref_t* _pwid_needle_sharing;  // Proportion of PWID who share needles
 
 		// Model inputs - HIV natural history
 		sex_age_hiv_t  _hiv_dist;  // distribution of disease stages at infection
@@ -522,6 +537,11 @@ namespace DP {
 		_partner_assortativity = new sex_pop_ref_t(ptr_assort, boost::extents[DP::N_SEX][DP::N_POP]);
 	}
 
+	template<typename popsize_t>
+	void ModelData<popsize_t>::share_pwid_risk(double* ptr_pwid_infection_force, double* ptr_needle_sharing) {
+		_pwid_infection_force = new year_sex_ref_t(ptr_pwid_infection_force, boost::extents[year_final() - year_first() + 1][DP::N_SEX]);
+		_pwid_needle_sharing  = new time_series_ref_t(ptr_needle_sharing, boost::extents[year_final() - year_first() + 1]);
+	}
 }
 
 #endif // DPDATA_H

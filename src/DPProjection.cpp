@@ -1265,6 +1265,10 @@ namespace DP {
 			}
 		}
 
+		double force_pwid[DP::N_SEX];
+		force_pwid[DP::FEMALE] = dat.pwid_needle_sharing(t) * dat.pwid_infection_force(t, DP::FEMALE);
+		force_pwid[DP::MALE  ] = dat.pwid_needle_sharing(t) * dat.pwid_infection_force(t, DP::MALE);
+
 		// update the population and record new infections
 		for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
 			si = sex[ui];
@@ -1272,7 +1276,7 @@ namespace DP {
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				ai = bi + DP::AGE_ADULT_MIN;
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					prop_transmit = 1.0 - exp(-HIV_STEP_SIZE * force[si][bi][ri] * vmmc_mult);
+					prop_transmit = 1.0 - exp(-HIV_STEP_SIZE * (force[si][bi][ri] * vmmc_mult + force_pwid[si] * (ri == DP::POP_PWID)));
 					new_hiv = prop_transmit * pop.adult_neg(t, ui, bi, ri);
 					pop.adult_neg(t, ui, bi, ri) -= new_hiv;
 					pop.adult_hiv(t, ui, bi, ri, DP::HIV_PRIMARY, DP::DTX_UNAWARE) += new_hiv;

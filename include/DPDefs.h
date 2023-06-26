@@ -50,6 +50,7 @@ namespace DP {
 	typedef boost::multi_array_ref<double, 2> year_dtx_ref_t;
 	typedef boost::multi_array_ref<double, 4> year_sex_age_pop_ref_t;
 
+	typedef boost::multi_array_ref<double, 1> time_series_ref_t;
 	typedef boost::multi_array_ref<int, 1> time_series_int_ref_t;
 
 	// alias for a two-dimensional array with rows corresponding
