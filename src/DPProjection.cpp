@@ -1063,7 +1063,7 @@ namespace DP {
 		// hj  HIV+ partner infection stage
 		// vj  HIV+ partner viral load
 		// We assume transmission risk is independent of age after adjusting for the strata above
-		double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_HIV_ADULT][DP::N_VL];
+		double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_STAGE][DP::N_VL];
 
 		if (step == 0) { // initialization at first step of year
 			for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
