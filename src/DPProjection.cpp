@@ -371,7 +371,7 @@ namespace DP {
 
 	void Projection::advance_one_year_demography(const int t) {
 		double buff[DP::N_HIV_CHILD];
-		double surv, mort;
+		double surv, mort, births;
 		int a, b, d, h, r, s, u;
 
 		// Projection
@@ -477,7 +477,20 @@ namespace DP {
 
 		}
 
-		calc_births(t);
+		// Add births to the population
+		const double perc_m(dat.srb(t) / (dat.srb(t) + 100.0));
+		const double perc_f(1.0 - perc_m);
+		births = calc_births(t);
+		dat.births(t, DP::MALE,   births * perc_m);
+		dat.births(t, DP::FEMALE, births * perc_f);
+
+		// all newborn males are assumed uncircumcised
+		for (int u = DP::SEX_MIN; u <= DP::SEX_MAX; ++u) {
+			surv = dat.Sx(t,u,0);
+			mort = 1.0 - surv;
+			pop.child_neg(t, u, 0) = dat.births(t,u) * surv;
+			dth.child_neg(t, u, 0) = dat.births(t,u) * mort;
+		}
 	}
 	
 	void Projection::advance_one_year_risk(const int t) {
@@ -1533,15 +1546,12 @@ namespace DP {
 		return births;
 	}
 
-	void Projection::calc_births(const int t) {
+	double Projection::calc_births(const int t) {
 		const int s(DP::FEMALE);
-		const double perc_m(dat.srb(t) / (dat.srb(t) + 100.0));
-		const double perc_f(1.0 - perc_m);
 		popsize_t female[DP::N_AGE];
 		popsize_t denom(0.0), births(0.0);
 
 		int a, b, d, h, r;
-		double surv, mort;
 
 		for (a = DP::AGE_BIRTH_MIN; a <= DP::AGE_BIRTH_MAX; ++a)
 			denom += dat.pasfrs(t,a);
@@ -1559,16 +1569,7 @@ namespace DP {
 			births += female[a] * dat.tfr(t) * dat.pasfrs(t,a) / denom;
 		}
 
-		dat.births(t, DP::MALE,   births * perc_m);
-		dat.births(t, DP::FEMALE, births * perc_f);
-
-		// Note: since DP::MALE = DP::MALE_U, all newborn males are uncircumcised
-		for (int u = DP::SEX_MIN; u <= DP::SEX_MAX; ++u) {
-			surv = dat.Sx(t,u,0);
-			mort = 1.0 - surv;
-			pop.child_neg(t, u, 0) = dat.births(t,u) * surv;
-			dth.child_neg(t, u, 0) = dat.births(t,u) * mort;
-		}
+		return births;
 	}
 
 	void Projection::calc_deaths(const int t) {

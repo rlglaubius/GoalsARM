@@ -90,7 +90,10 @@ namespace DP {
 		inline double Sx(const int t, const int s, const int a) const {return _Sx[t][s][a];}
 
 		inline double tfr(const int t) const {return _tfr[t];}
+		inline void tfr(const int t, const double value) {_tfr[t] = value;}
+
 		inline double srb(const int t) const {return _srb[t];}
+		inline void srb(const int t, const double value) {_srb[t] = value;}
 
 		inline double uptake_male_circumcision(const int t, const int a) const {return _uptake_male_circumcision[t][a];}
 		inline void uptake_male_circumcision(const int t, const int a, const double value) {_uptake_male_circumcision[t][a] = value;}

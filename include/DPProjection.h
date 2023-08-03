@@ -29,6 +29,8 @@ namespace DP {
 		inline const int year_final() const {return _year_final;}
 		inline const int num_years() const {return _num_years;}
 
+		double calc_births(const int time);
+
 	private:
 		// Projection is not default-constructible - start and final years must be specified
 		Projection();
@@ -59,7 +61,6 @@ namespace DP {
 
 		double calc_births_hiv(const int time);
 
-		void calc_births(const int time);
 		void calc_deaths(const int time);
 
 		int _year_first;
