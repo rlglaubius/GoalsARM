@@ -37,24 +37,18 @@ result_t test_births() {
 	int a, b;
 	double births;
 
-	const size_t size_child_neg(num_years * DP::N_SEX_MC * DP::N_AGE_CHILD);
-	const size_t size_child_hiv(num_years * DP::N_SEX_MC * DP::N_AGE_CHILD * DP::N_HIV * DP::N_DTX);
-	const size_t size_adult_neg(num_years * DP::N_SEX_MC * DP::N_AGE_ADULT * DP::N_POP);
-	const size_t size_adult_hiv(num_years * DP::N_SEX_MC * DP::N_AGE_ADULT * DP::N_POP * DP::N_HIV * DP::N_DTX);
+	boost::multi_array<double, 3> child_neg(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD]);
+	boost::multi_array<double, 5> child_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD][DP::N_HIV][DP::N_DTX]);
+	boost::multi_array<double, 4> adult_neg(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP]);
+	boost::multi_array<double, 6> adult_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP][DP::N_HIV][DP::N_DTX]);
 
-	double *child_neg, *child_hiv, *adult_neg, *adult_hiv;
-	child_neg = new double[size_child_neg];
-	child_hiv = new double[size_child_hiv];
-	adult_neg = new double[size_adult_neg];
-	adult_hiv = new double[size_adult_hiv];
-
-	std::fill(child_neg, child_neg + size_child_neg, 0.0);
-	std::fill(child_hiv, child_hiv + size_child_hiv, 0.0);
-	std::fill(adult_neg, adult_neg + size_adult_neg, 0.0);
-	std::fill(adult_hiv, adult_hiv + size_adult_hiv, 0.0);
+	std::fill_n(child_neg.data(), child_neg.num_elements(), 0.0);
+	std::fill_n(child_hiv.data(), child_hiv.num_elements(), 0.0);
+	std::fill_n(adult_neg.data(), adult_neg.num_elements(), 0.0);
+	std::fill_n(adult_hiv.data(), adult_hiv.num_elements(), 0.0);
 
 	DP::Projection proj(year_first, year_final);
-	proj.pop.share_storage(adult_neg, adult_hiv, child_neg, child_hiv);
+	proj.pop.share_storage(adult_neg.data(), adult_hiv.data(), child_neg.data(), child_hiv.data());
 
 	proj.dat.tfr(year_final - year_first, tfr);
 	proj.dat.srb(year_final - year_first, srb);
@@ -66,11 +60,6 @@ result_t test_births() {
 	}
 
 	births = proj.calc_births(year_final - year_first);
-
-	delete [] child_neg;
-	delete [] child_hiv;
-	delete [] adult_neg;
-	delete [] adult_hiv;
 
 	return fabs(births - 251855) < 0.5 ? TEST_SUCCESS : TEST_FAILURE;
 }
