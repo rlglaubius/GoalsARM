@@ -1485,7 +1485,10 @@ namespace DP {
 			num_art = 0.0;
 			std::fill(num_hiv, num_hiv + DP::N_HIV_ADULT, 0.0);
 
-			// count reproductive-age women
+			// count reproductive-age women. Note that we sum over years t-1 and year t because we
+			// ultimately want to account for a half-year exposure to age-specific rates before
+			// and after women's birthdays each year. We defer the averaging until the very end
+			// of the calculation.
 			for (u = 0; u < 2; ++u) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
 					num_neg += pop.adult_neg(t - u, DP::FEMALE, b, r);
@@ -1501,12 +1504,6 @@ namespace DP {
 				}
 			}
 
-			// account for half-year average exposure to rates from before vs. after birthday
-			num_neg *= 0.5;
-			num_art *= 0.5;
-			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-				num_hiv[h] *= 0.5;
-
 			num_all = num_neg + num_art;
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 				num_all += num_hiv[h];
@@ -1521,7 +1518,9 @@ namespace DP {
 
 			births_exposed += asfr * num_all * raw_hiv / (num_neg + raw_hiv);
 		}
-		return(births_exposed);
+
+		// Multiply by 0.5 to average exposures before and after women's birthdays.
+		return(0.5 * births_exposed);
 	}
 
 	double Projection::calc_births(const int t) {
