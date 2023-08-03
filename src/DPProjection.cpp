@@ -1472,78 +1472,56 @@ namespace DP {
 	}
 
 	double Projection::calc_births_hiv_exposed(const int t) {
-		int u;
-		double discount, births, prev, scale, afrr, dfrr, hfrr;
-		popsize_t nneg[2][DP::N_AGE_BIRTH], nhiv[2][DP::N_AGE_BIRTH], nart[2][DP::N_AGE_BIRTH];
-		popsize_t ncd4[2][DP::N_AGE_BIRTH][DP::N_HIV_ADULT];
-		double prob_mtct[DP::N_HIV_ADULT] = {0.15, 0.15, 0.27, 0.27, 0.37, 0.37, 0.37}; // TODO: hard-coded for testing, need to move these into the input workbook
-		double size_abs[DP::N_HIV_ADULT], size_wgt[DP::N_HIV_ADULT];
+		double num_hiv[N_HIV_ADULT], num_art, num_neg, num_all;
+		double frr_hiv[N_HIV_ADULT], frr_art;
+		double raw_hiv, asfr;
+		double births_exposed(0.0);
+		int b, r, h, d, u;
 
-		// Count reproductive-age women by age, HIV, and ART status in the current and previous year
-		for (int i(0); i < 2; ++i) {
-			u = t - 1 + i;
-			for (int b(0); b < DP::N_AGE_BIRTH; ++b) {
-				nneg[i][b] = nhiv[i][b] = nart[i][b] = 0.0;
-				for (int h(0); h < DP::N_HIV_ADULT; ++h)
-					ncd4[i][b][h] = 0.0;
+		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
+			asfr = dat.tfr(t) * dat.pasfrs(t, b + DP::AGE_BIRTH_MIN);
 
-				for (int r(0); r < DP::N_POP; ++r) {
-					nneg[i][b] += pop.adult_neg(u, DP::FEMALE, b, r);
-					for (int h(0); h < DP::N_HIV_ADULT; ++h) {
-						for (int d(DP::DTX_UNAWARE); d <= DP::DTX_ART1; ++d)
-							ncd4[i][b][h] += pop.adult_hiv(u, DP::FEMALE, b, r, h, d);
-						for (int d(DP::DTX_ART2); d <= DP::DTX_ART3; ++d)
-							nart[i][b] += pop.adult_hiv(u, DP::FEMALE, b, r, h, d);
+			num_neg = 0.0;
+			num_art = 0.0;
+			std::fill(num_hiv, num_hiv + DP::N_HIV_ADULT, 0.0);
+
+			// count reproductive-age women
+			for (u = 0; u < 2; ++u) {
+				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
+					num_neg += pop.adult_neg(t - u, DP::FEMALE, b, r);
+
+				// recent ART initiates (DTX_ART1) are assumed to have the same fertility as women not on ART
+				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
+					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
+						for (d = DP::DTX_UNAWARE; d <= DP::DTX_ART1; ++d)
+							num_hiv[h] += pop.adult_hiv(t - u, DP::FEMALE, b, r, h, d);
+						for (d = DP::DTX_ART2; d <= DP::DTX_MAX; ++d)
+							num_art += pop.adult_hiv(t - u, DP::FEMALE, b, r, h, d);
 					}
 				}
-
-				for (int h(0); h < DP::N_HIV_ADULT; ++h)
-					nhiv[i][b] += ncd4[i][b][h];
 			}
+
+			// account for half-year average exposure to rates from before vs. after birthday
+			num_neg *= 0.5;
+			num_art *= 0.5;
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				num_hiv[h] *= 0.5;
+
+			num_all = num_neg + num_art;
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				num_all += num_hiv[h];
+
+			frr_art = dat.frr_age_on_art(b);
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				frr_hiv[h] = dat.frr_age_no_art(t,b) * dat.frr_cd4_no_art(h);
+
+			raw_hiv = num_art * frr_art;
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				raw_hiv += num_hiv[h] * frr_hiv[h];
+
+			births_exposed += asfr * num_all * raw_hiv / (num_neg + raw_hiv);
 		}
-
-		births = 0.0;
-		for (int b(0); b < DP::N_AGE_BIRTH; ++b) {
-			int a = b + DP::AGE_BIRTH_MIN;
-			prev = (nhiv[1][b] + nart[1][b]) / (nhiv[1][b] + nart[1][b] + nneg[1][b]);
-			afrr = dat.frr_age_no_art(t, b);
-			dfrr = dat.frr_age_on_art(b);
-			discount = (nart[1][b] + nart[0][b]) * dfrr;
-			for (int h(0); h < DP::N_HIV_ADULT; ++h) {
-				hfrr = dat.frr_cd4_no_art(h);
-				discount += (ncd4[1][b][h] + ncd4[0][b][h]) * afrr * hfrr;
-			}
-			discount /= (nhiv[1][b] + nart[1][b] + nhiv[0][b] + nart[0][b]);
-			scale = discount / (discount * prev + 1.0 - prev);
-
-			births += scale * 0.5 * (nhiv[1][b] + nart[1][b] + nhiv[0][b] + nart[0][b]) * dat.tfr(t) * dat.pasfrs(t, a);
-		}
-
-		double hiv_perinatal_abs(0), hiv_perinatal_wgt(0), denom_abs, denom_wgt;
-		std::fill(size_abs, size_abs + DP::N_HIV_ADULT, 0.0);
-		std::fill(size_wgt, size_wgt + DP::N_HIV_ADULT, 0.0);
-		for (int b(0); b < DP::N_AGE_BIRTH; ++b) {
-			int a = b + DP::AGE_BIRTH_MIN;
-			afrr = dat.frr_age_no_art(t, b);
-			for (int h(0); h < DP::N_HIV_ADULT; ++h) {
-				hfrr = dat.frr_cd4_no_art(h);
-				size_abs[h] += ncd4[1][b][h];
-				size_wgt[h] += ncd4[1][b][h] * afrr * hfrr * dat.pasfrs(t, a);
-			}
-		}
-		denom_abs = std::accumulate(size_abs, size_abs + DP::N_HIV_ADULT, 0.0);
-		denom_wgt = std::accumulate(size_wgt, size_wgt + DP::N_HIV_ADULT, 0.0);
-
-		for (int h(0); h < DP::N_HIV_ADULT; ++h) {
-			hiv_perinatal_abs += prob_mtct[h] * size_abs[h];
-			hiv_perinatal_wgt += prob_mtct[h] * size_wgt[h];
-		}
-		hiv_perinatal_abs *= births / denom_abs;
-		hiv_perinatal_wgt *= births / denom_wgt;
-
-		//fprintf(stderr, "%s[%d] t=%d %12.4f %12.4f %12.4f\n", __FILE__, __LINE__, t + 1970 - 1, births, hiv_perinatal_abs, hiv_perinatal_wgt);
-
-		return births;
+		return(births_exposed);
 	}
 
 	double Projection::calc_births(const int t) {
