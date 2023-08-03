@@ -30,6 +30,7 @@ namespace DP {
 		inline const int num_years() const {return _num_years;}
 
 		double calc_births(const int time);
+		double calc_births_hiv_exposed(const int time);
 
 	private:
 		// Projection is not default-constructible - start and final years must be specified
@@ -59,7 +60,6 @@ namespace DP {
 		void insert_endyear_migrants(const int time);
 		void seed_epidemic(const int time, const double prev);
 
-		double calc_births_hiv(const int time);
 
 		void calc_deaths(const int time);
 

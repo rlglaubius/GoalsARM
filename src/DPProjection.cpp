@@ -774,7 +774,7 @@ namespace DP {
 	}
 
 	void Projection::advance_one_year_hiv_child(const int t) {
-		double births_exposed(calc_births_hiv(t));
+		double births_exposed(calc_births_hiv_exposed(t));
 		dat.births_hiv_exposed(t, births_exposed);
 		// TODO: pediatric HIV infection and progression calculations
 	}
@@ -1471,7 +1471,7 @@ namespace DP {
 		}
 	}
 
-	double Projection::calc_births_hiv(const int t) {
+	double Projection::calc_births_hiv_exposed(const int t) {
 		int u;
 		double discount, births, prev, scale, afrr, dfrr, hfrr;
 		popsize_t nneg[2][DP::N_AGE_BIRTH], nhiv[2][DP::N_AGE_BIRTH], nart[2][DP::N_AGE_BIRTH];
@@ -1513,7 +1513,7 @@ namespace DP {
 				hfrr = dat.frr_cd4_no_art(h);
 				discount += (ncd4[1][b][h] + ncd4[0][b][h]) * afrr * hfrr;
 			}
-			discount /= (nhiv[1][b] + nart[1][b] + nhiv[0][b] + nart[1][b]);
+			discount /= (nhiv[1][b] + nart[1][b] + nhiv[0][b] + nart[0][b]);
 			scale = discount / (discount * prev + 1.0 - prev);
 
 			births += scale * 0.5 * (nhiv[1][b] + nart[1][b] + nhiv[0][b] + nart[0][b]) * dat.tfr(t) * dat.pasfrs(t, a);
