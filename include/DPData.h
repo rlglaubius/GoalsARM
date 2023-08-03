@@ -53,6 +53,10 @@ namespace DP {
 		/// @param ptr_births pointer to an array of births by year and sex
 		void share_births(double* ptr_births);
 
+		/// Transfer an array for storing output numbers of births to mothers living with HIV
+		/// @param ptr_births_exposed pointer to an array of births by year
+		void share_births_exposed(double* ptr_births_exposed);
+
 		/// Transfer an array for storing output numbers of new HIV infections
 		/// @param ptr_newhiv pointer to an array of new infections by year, sex, age, and behavioral risk group
 		void share_new_infections(double* ptr_newhiv);
@@ -126,6 +130,9 @@ namespace DP {
 
 		inline double births(const int t, const int s) const {return (*_births)[t][s];}
 		inline void births(const int t, const int s, const popsize_t value) {(*_births)[t][s] = value;}
+
+		inline double births_hiv_exposed(const int t) const {return (*_births_exposed)[t];}
+		inline void births_hiv_exposed(const int t, const popsize_t value) {(*_births_exposed)[t] = value;}
 
 		inline double deaths(const int t, const int s, const int a) const {return _deaths[t][s][a];}
 		inline void deaths(const int t, const int s, const int a, const popsize_t value) {_deaths[t][s][a] = value;}
@@ -338,6 +345,8 @@ namespace DP {
 		year_sex_age_t     _deaths;
 		year_sex_age_t     _popsize;
 
+		time_series_ref_t* _births_exposed;
+
 		year_sex_age_pop_ref_t* _new_hiv_infections;
 	};
 
@@ -385,6 +394,7 @@ namespace DP {
 			_clhiv_agein(year_sex_hiv_dtx_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_HIV][DP::N_DTX])),
 
 			_births(NULL),
+			_births_exposed(NULL),
 			_deaths(year_sex_age_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_AGE])),
 			_popsize(year_sex_age_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_AGE])),
 			_new_hiv_infections(NULL)
@@ -397,6 +407,7 @@ namespace DP {
 	template<typename popsize_t>
 	ModelData<popsize_t>::~ModelData() {
 		if (_births) {delete _births;}
+		if (_births_exposed) {delete _births_exposed;}
 		if (_partner_rate) {delete _partner_rate;}
 		if (_partner_preference_age) {delete _partner_preference_age;}
 		if (_partner_assortativity) {delete _partner_assortativity;}
@@ -515,6 +526,11 @@ namespace DP {
 	template<typename popsize_t>
 	void ModelData<popsize_t>::share_births(double* ptr_births) {
 		_births = new year_sex_ref_t(ptr_births, boost::extents[year_final() - year_first() + 1][DP::N_SEX]);
+	}
+
+	template<typename popsize_t>
+	void ModelData<popsize_t>::share_births_exposed(double* ptr_births_exposed) {
+		_births_exposed = new time_series_ref_t(ptr_births_exposed, boost::extents[year_final() - year_first() + 1]);
 	}
 
 	template<typename popsize_t>

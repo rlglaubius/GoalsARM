@@ -761,8 +761,8 @@ namespace DP {
 	}
 
 	void Projection::advance_one_year_hiv_child(const int t) {
-		double births_hei(calc_births_hiv(t)); // HIV-exposed (but not necessarily HIV-positive) infant births
-
+		double births_exposed(calc_births_hiv(t));
+		dat.births_hiv_exposed(t, births_exposed);
 		// TODO: pediatric HIV infection and progression calculations
 	}
 
