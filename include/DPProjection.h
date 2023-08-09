@@ -24,11 +24,19 @@ namespace DP {
 		// This is intended (e.g.) to enable faster model fitting when fitting data run out before year_final
 		void project(const int year_end);
 
+		// Invalidate projected estimates after the given year. Calling project(year_end)
+		// stores year_end as the last year of valid model outputs. Subsequent calls to
+		// project() will resume from year_end. Use invalidate(year) to reset this resumption
+		// point to an earlier year. invalidate(-1) will force project() to start from the
+		// beginning.
+		void invalidate(const int year);
+
 		// Accessors
 		inline const int year_first() const {return _year_first;}
 		inline const int year_final() const {return _year_final;}
 		inline const int num_years() const {return _num_years;}
 
+		// Public calculation methods
 		double calc_births(const int time);
 		double calc_births_hiv_exposed(const int time);
 

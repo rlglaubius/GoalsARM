@@ -40,6 +40,13 @@ namespace DP {
 		_last_valid_time = time_end;
 	}
 
+	void Projection::invalidate(const int year) {
+		// If 'year' is before the first year of projection, use -1. Otherwise, reset
+		// _last_valid_time to the given year or the _last_valid_time, whichever is
+		// earlier
+		_last_valid_time = (year < year_first() ? -1 : std::min(year - year_first(), _last_valid_time));
+	}
+
 	void Projection::calc_popsize(const int t) {
 		int a, b, d, h, r, s;
 		popsize_t count;
