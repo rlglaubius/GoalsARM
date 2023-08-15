@@ -16,4 +16,6 @@ bool contains(const std::string &str, const std::string &sub);
 
 } // end namespace GB
 
+#include <GBUtil_impl.h>
+
 #endif // GBUTIL_H

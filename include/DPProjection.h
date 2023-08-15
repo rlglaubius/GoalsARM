@@ -82,4 +82,6 @@ namespace DP {
 
 } // END namespace DP
 
+#include <DPProjection_impl.h>
+
 #endif // DPPROJECTION_H

@@ -66,4 +66,6 @@ private:
 
 } // END namespace DP
 
+#include <Population_impl.h>
+
 #endif // POPULATION_H

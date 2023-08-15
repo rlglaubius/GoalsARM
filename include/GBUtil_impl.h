@@ -1,4 +1,5 @@
-#include <GBUtil.H>
+#ifndef GBUTIL_IMPL_H
+#define GBUTIL_IMPL_H
 
 namespace GB {
 
@@ -19,3 +20,5 @@ bool contains(const std::string &str, const std::string &sub) {
 }
 
 } // end namespace GB
+
+#endif // GBUTIL_IMPL_H

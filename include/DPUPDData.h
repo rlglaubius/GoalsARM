@@ -67,4 +67,6 @@ private:
 
 } // end namespace DP
 
+#include <DPUPDData_impl.h>
+
 #endif // DPUPDDATA_H

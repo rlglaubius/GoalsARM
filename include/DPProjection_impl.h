@@ -1,7 +1,9 @@
+#ifndef DPPROJECTION_IMPL_H
+#define DPPROJECTION_IMPL_H
+
 #include <algorithm>
 #include <iostream>
 #include <numeric>
-#include <DPProjection.h>
 
 namespace DP {
 
@@ -1585,3 +1587,5 @@ namespace DP {
 	}
 
 } // END namespace DP
+
+#endif // DPPROJECTION_IMPL_H

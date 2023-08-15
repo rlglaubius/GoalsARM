@@ -1,6 +1,8 @@
+#ifndef DPUPDDATA_IMPL_H
+#define DPUPDDATA_IMPL_H
+
 #include <boost/multi_array.hpp>
 #include <fstream>
-#include <DPUPDData.H>
 #include <GBUtil.H>
 
 namespace DP {
@@ -153,3 +155,5 @@ int UPDData::read_migration(std::ifstream &fin) {
 }
 
 } // end namespace DP
+
+#endif // DPUPDDATA_IMPL_H

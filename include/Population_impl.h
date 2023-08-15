@@ -1,4 +1,5 @@
-#include <Population.h>
+#ifndef POPULATION_IMPL_H
+#define POPULATION_IMPL_H
 
 namespace DP {
 
@@ -48,3 +49,5 @@ namespace DP {
     }
 
 } // END namespace DP
+
+#endif // POPULATION_IMPL_H
