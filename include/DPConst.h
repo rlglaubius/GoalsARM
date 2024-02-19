@@ -196,6 +196,18 @@ namespace DP {
 
 	const int N_VL = VL_MAX - VL_MIN + 1;
 
+	// +=+ STI symptomatic status constants +====================================+
+	enum sti_t {
+		STI_NONE = 0, // STI symptoms present in neither partner
+		STI_HIVN = 1, // STI symptoms present in HIV-negative partner only
+		STI_HIVP = 2, // STI symptoms present in HIV-positive partner only
+		STI_BOTH = 3, // STI symptoms present in both partners
+		STI_MIN = 0,
+		STI_MAX = 3
+	};
+
+	const int N_STI = STI_MAX - STI_MIN + 1;
+
 	// +=+ Time steps per year for HIV dynamics +=+
 	const int HIV_TIME_STEPS = 10;
 	const double HIV_STEP_SIZE = 1.0 / HIV_TIME_STEPS;
