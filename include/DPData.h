@@ -188,6 +188,9 @@ namespace DP {
 		inline double condom_freq(const int t, const int bond) const {return _condom_freq[t][bond];}
 		inline void condom_freq(const int t, const int bond, const double value) {_condom_freq[t][bond] = value;}
 
+		inline double sti_prev(const int t, const int s, const int a, const int r) const {return _sti_prev[t][s][a][r];}
+		inline void sti_prev(const int t, const int s, const int a, const int r, const double value) {_sti_prev[t][s][a][r] = value;}
+
 		inline double pwid_infection_force(const int t, const int s) const {return (*_pwid_infection_force)[t][s];}
 		inline void pwid_infection_force(const int t, const int s, const double value) {return (*_pwid_infection_force)[t][s] = value;}
 
@@ -243,6 +246,12 @@ namespace DP {
 
 		inline double clhiv_agein(const int t, const int s, const int h, const int d) const {return _clhiv_agein[t][s][h][d];}
 		inline void clhiv_agein(const int t, const int s, const int h, const int d, const double value) {_clhiv_agein[t][s][h][d] = value;}
+
+		inline double effect_sti_hivpos() const {return _effect_sti_hivpos;}
+		inline void effect_sti_hivpos(const double value) {_effect_sti_hivpos = value;}
+
+		inline double effect_sti_hivneg() const {return _effect_sti_hivneg;}
+		inline void effect_sti_hivneg(const double value) {_effect_sti_hivneg = value;}
 
 		inline double effect_vmmc() const {return _effect_vmmc;}
 		inline void effect_vmmc(const double value) {_effect_vmmc = value;}
@@ -307,6 +316,11 @@ namespace DP {
 		// Model inputs - sexual behavior within partnerships
 		double _sex_acts[DP::N_BOND]; // sex acts per partner per year
 		year_bond_t _condom_freq;     // condom use at last sex
+
+		// Model inputs - STI symptom prevalence
+		year_sex_age_pop_t _sti_prev;
+		double _effect_sti_hivpos; // effect of STIs on HIV transmission if HIV+ partner STI symptomatic
+		double _effect_sti_hivneg; // effect of STIs on HIV transmission if HIV- partner STI symptomatic
 
 		// Model inputs - HIV risk from unsafe injecting practices
 		year_sex_ref_t*    _pwid_infection_force; // Force of infection acting on PWID who share needles
@@ -380,6 +394,8 @@ namespace DP {
 			_partner_assortativity(NULL),
 
 			_condom_freq(year_bond_t(boost::extents[year_final - year_start + 1][DP::N_BOND])),
+
+			_sti_prev(year_sex_age_pop_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
 
 			_hiv_dist(sex_age_hiv_t(boost::extents[DP::N_SEX][DP::N_AGE][DP::N_HIV])),
 			_hiv_prog(sex_age_hiv_t(boost::extents[DP::N_SEX][DP::N_AGE][DP::N_HIV])),

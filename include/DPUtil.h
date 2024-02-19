@@ -167,7 +167,9 @@ namespace DP {
 						  const double chronic,
 						  const double symptom,
 						  const double or_art_supp,
-						  const double or_art_fail) {
+						  const double or_art_fail,
+							const double or_sti_hiv_pos,
+							const double or_sti_hiv_neg) {
 		double base, mult, prob;
 		double ratio_sex[DP::N_SEX][DP::N_SEX], ratio_hiv[DP::N_HIV_ADULT], ratio_vl[DP::N_VL];
 
@@ -194,6 +196,9 @@ namespace DP {
 						prob = base * mult / (1.0 - base + base * mult);
 						dat.hiv_risk_per_act(s_neg, s_pos, h, v, prob);
 					}
+
+		dat.effect_sti_hivpos(or_sti_hiv_pos);
+		dat.effect_sti_hivneg(or_sti_hiv_neg);
 	}
 
 	template<typename popsize_t>
