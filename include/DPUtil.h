@@ -192,7 +192,7 @@ namespace DP {
 			for (int s_pos(0); s_pos < DP::N_SEX; ++s_pos)
 				for (int h(0); h < DP::N_STAGE; ++h)
 					for (int v(0); v < DP::N_VL; ++v) {
-						mult = ratio_sex[s_pos][s_neg] * ratio_hiv[h] * ratio_vl[v];
+						mult = ratio_sex[s_pos][s_neg] * ratio_vl[v] * (v == VL_SUCCESS ? 1.0 : ratio_hiv[h]);
 						prob = base * mult / (1.0 - base + base * mult);
 						dat.hiv_risk_per_act(s_neg, s_pos, h, v, prob);
 					}
