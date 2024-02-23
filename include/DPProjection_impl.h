@@ -1055,7 +1055,7 @@ namespace DP {
 		int ai, ui, uj, cj, hj, dj, vj, qij, zij;
 
 		double prop_transmit, vmmc_mult, new_hiv;
-		double bal_numer, bal_denom, ptransmit_avg;
+		double bal_numer, bal_denom;
 		double bal_mix, acts_with, acts_wout, num_art, force_group;
 		double canmix_numer[DP::N_SEX][DP::N_POP], prefer_numer[DP::N_SEX][DP::N_POP];
 		double force[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
@@ -1088,6 +1088,7 @@ namespace DP {
 		// zij STI symptom status
 		// We assume transmission risk is independent of age after adjusting for the strata above
 		double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_STAGE][DP::N_VL][DP::N_STI];
+		double mass[DP::N_SEX][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_BOND][DP::N_STI];
 
 		if (step == 0) { // initialization at first step of year
 			for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
@@ -1233,6 +1234,20 @@ namespace DP {
 						}
 		}
 
+		// Cache the infectiousness "mass", defined here as HIV prevalence
+		// in potential partners, weighted by the probability of transmission per partnership
+		for (si = 0; si < DP::N_SEX; ++si)
+			for (sj = 0; sj < DP::N_SEX; ++sj)
+				for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
+					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj)
+						for (qij = 0; qij < DP::N_BOND; ++qij)
+							for (zij = 0; zij < DP::N_STI; ++zij) {
+								mass[si][sj][bj][rj][qij][zij] = 0.0;
+								for (hj = 0; hj < DP::N_STAGE; ++hj)
+									for (vj = 0; vj < DP::N_VL; ++vj)
+										mass[si][sj][bj][rj][qij][zij] += ptransmit[si][sj][qij][hj][vj][zij] * prev[sj][bj][rj][hj][vj];
+							}
+
 		for (si = 0; si < DP::N_SEX; ++si) {
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
@@ -1269,12 +1284,8 @@ namespace DP {
 										bal_mix = mix_other * bal_other;
 
 										force_group = 0.0;
-										for (hj = 0; hj < DP::N_STAGE; ++hj)
-											for (vj = 0; vj < DP::N_VL; ++vj) {
-												ptransmit_avg = 0.0;
-												for (zij = 0; zij < DP::N_STI; ++zij) ptransmit_avg += ptransmit[si][sj][qij][hj][vj][zij] * sti_wgt[zij];
-												force_group += ptransmit_avg * prev[sj][bj][rj][hj][vj];
-											}
+										for (zij = 0; zij < DP::N_STI; ++zij)
+											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
 										force_other[si][bi][ri] += bal_mix * force_group;
 									}
 
@@ -1288,12 +1299,8 @@ namespace DP {
 										bal_mix = mix_union * bal_union;
 
 										force_group = 0.0;
-										for (hj = 0; hj < DP::N_STAGE; ++hj)
-											for (vj = 0; vj < DP::N_VL; ++vj) {
-												ptransmit_avg = 0.0;
-												for (zij = 0; zij < DP::N_STI; ++zij) ptransmit_avg += ptransmit[si][sj][qij][hj][vj][zij] * sti_wgt[zij];
-												force_group += ptransmit_avg * prev[sj][bj][rj][hj][vj];
-											}
+										for (zij = 0; zij < DP::N_STI; ++zij)
+											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
 										force_union[si][bi][ri] += bal_mix * force_group;
 									}
 								}
