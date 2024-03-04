@@ -216,8 +216,8 @@ namespace DP {
 			p_turn_enter = kp_turn_enter[s][a] / size_curr;
 
 			pop.adult_neg(t, s, a, DP::POP_NOSEX) = size_curr * (1.0 - dat.debut_prop(s) - p_turn_enter);
-			pop.adult_neg(t, s, a, DP::POP_NEVER) = size_curr * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s]);
-			pop.adult_neg(t, s, a, DP::POP_UNION) = size_curr * dat.debut_prop(s) * dat.union_prop(s);
+			pop.adult_neg(t, s, a, DP::POP_NEVER) = size_curr * dat.debut_prop(s) * (1.0 - dat.prop_debut_in_union(s) - p_stay_enter[s]);
+			pop.adult_neg(t, s, a, DP::POP_UNION) = size_curr * dat.debut_prop(s) * dat.prop_debut_in_union(s);
 			pop.adult_neg(t, s, a, DP::POP_SPLIT) = 0.0;
 
 			for (a = 1; a < DP::N_AGE_ADULT; ++a) {
@@ -238,9 +238,9 @@ namespace DP {
 
 				// GP
 				pop.adult_neg(t, s, a, DP::POP_NOSEX) = n_nosex * (1.0 - dat.debut_prop(s) - p_turn_enter);
-				pop.adult_neg(t, s, a, DP::POP_NEVER) = n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s])
+				pop.adult_neg(t, s, a, DP::POP_NEVER) = n_nosex * dat.debut_prop(s) * (1.0 - dat.prop_debut_in_union(s) - p_stay_enter[s])
 					                                    + n_never * (1.0 - dat.union_prop(s) - p_turn_enter);
-				pop.adult_neg(t, s, a, DP::POP_UNION) = n_nosex * dat.debut_prop(s) * dat.union_prop(s)
+				pop.adult_neg(t, s, a, DP::POP_UNION) = n_nosex * dat.debut_prop(s) * dat.prop_debut_in_union(s)
 					                                    + n_never * dat.union_prop(s)
 					                                    + n_union * (1.0 - dat.split_prop() - p_turn_enter)
 					                                    + n_split * dat.union_prop(s)
@@ -666,9 +666,9 @@ namespace DP {
 				n_union = pop.adult_neg(t, u, a, DP::POP_UNION);
 				n_split = pop.adult_neg(t, u, a, DP::POP_SPLIT);
 				dneg[u][a][DP::POP_NOSEX] -= n_nosex * (dat.debut_prop(s) + p_turn_enter[s][a]);
-				dneg[u][a][DP::POP_NEVER] += n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s]);
+				dneg[u][a][DP::POP_NEVER] += n_nosex * dat.debut_prop(s) * (1.0 - dat.prop_debut_in_union(s) - p_stay_enter[s]);
 				dneg[u][a][DP::POP_NEVER] -= n_never * (dat.union_prop(s) + p_turn_enter[s][a]);
-				dneg[u][a][DP::POP_UNION] += n_nosex * dat.debut_prop(s) * dat.union_prop(s);
+				dneg[u][a][DP::POP_UNION] += n_nosex * dat.debut_prop(s) * dat.prop_debut_in_union(s);
 				dneg[u][a][DP::POP_UNION] += (n_never + n_split) * dat.union_prop(s);
 				dneg[u][a][DP::POP_UNION] -= n_union * (dat.split_prop() + p_turn_enter[s][a]);
 				dneg[u][a][DP::POP_SPLIT] += n_union * dat.split_prop();
@@ -680,9 +680,9 @@ namespace DP {
 						n_union = pop.adult_hiv(t, u, a, DP::POP_UNION, h, d);
 						n_split = pop.adult_hiv(t, u, a, DP::POP_SPLIT, h, d);
 						dhiv[u][a][DP::POP_NOSEX][h][d] -= n_nosex * (dat.debut_prop(s) + p_turn_enter[s][a]);
-						dhiv[u][a][DP::POP_NEVER][h][d] += n_nosex * dat.debut_prop(s) * (1.0 - dat.union_prop(s) - p_stay_enter[s]);
+						dhiv[u][a][DP::POP_NEVER][h][d] += n_nosex * dat.debut_prop(s) * (1.0 - dat.prop_debut_in_union(s) - p_stay_enter[s]);
 						dhiv[u][a][DP::POP_NEVER][h][d] -= n_never * (dat.union_prop(s) + p_turn_enter[s][a]);
-						dhiv[u][a][DP::POP_UNION][h][d] += n_nosex * dat.debut_prop(s) * dat.union_prop(s);
+						dhiv[u][a][DP::POP_UNION][h][d] += n_nosex * dat.debut_prop(s) * dat.prop_debut_in_union(s);
 						dhiv[u][a][DP::POP_UNION][h][d] += (n_never + n_split) * dat.union_prop(s);
 						dhiv[u][a][DP::POP_UNION][h][d] -= n_union * (dat.split_prop() + p_turn_enter[s][a]);
 						dhiv[u][a][DP::POP_SPLIT][h][d] += n_union * dat.split_prop();

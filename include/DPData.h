@@ -107,6 +107,9 @@ namespace DP {
 		inline double split_prop() const {return _split_prop;}
 		inline void split_prop(const double value) {_split_prop = value;}
 
+		inline double prop_debut_in_union(const int s) const {return _prop_debut_in_union[s];}
+		inline void prop_debut_in_union(const int s, const double value) {_prop_debut_in_union[s] = value;}
+
 		// r must be DP::POP_MSM, DP::POP_TGW, DP::POP_FSW, DP::POP_KEY, or DP::POP_PWID
 		inline double keypop_exit_prop(const int s, const int r) const {return _keypop_exit_prop[s][r - DP::POP_KEY_MIN];}
 		inline void keypop_exit_prop(const int s, const int r, const double value) {_keypop_exit_prop[s][r - DP::POP_KEY_MIN] = value;}
@@ -277,9 +280,10 @@ namespace DP {
 		year_age_t     _uptake_male_circumcision;
 
 		// Model inputs - behavioral risk group sizes and dynamics
-		double _debut_prop[DP::N_SEX]; // proportion who debut sexually per year
-		double _union_prop[DP::N_SEX]; // proportion who marry or start cohabitating per year
-		double _split_prop;            // proportion of marriages/cohabitating partnerships that end per year
+		double _debut_prop[DP::N_SEX];          // proportion who debut sexually per year
+		double _union_prop[DP::N_SEX];          // proportion who marry or start cohabitating per year
+		double _split_prop;                     // proportion of marriages/cohabitating partnerships that end per year
+		double _prop_debut_in_union[DP::N_SEX]; // proportion who first debut in a marital or cohabiting partnership
 		double _keypop_exit_prop[DP::N_SEX][DP::N_POP_KEY];                 // proportion of key pops lost to turnover each year
 		double _keypop_size[DP::N_SEX][DP::N_POP_KEY];                      // proportion of 15-49 sex s who are in population r
 		bool   _keypop_stay[DP::N_SEX][DP::N_POP_KEY];                      // indicates whether key population membership is lifelong (true) or not (false)

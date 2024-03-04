@@ -1,6 +1,7 @@
 #ifndef DPUTIL_H
 #define DPUTIL_H
 
+#include <numbers>
 #include <boost/math/distributions/lognormal.hpp>
 #include <DPData.h>
 
@@ -15,21 +16,15 @@ namespace DP {
 	// make sense to the user may not be the most computationally-efficient way
 	// to parameterize the model. For example, the user may have survey data on
 	// the age at sexual debut, while the model calculations are designed to use
-	// annual rates of sexual debut 
+	// annual rates of sexual debut
 
-	// Initialize debut rates from the median age at sexual debut
+	// Initialize rates of sexual debut and first marriage/cohabitation
 	// @param dat ModelData instance to initialize
 	// @param sex Sex of the population
-	// @param age Median age at sexual debut
+	// @param median_age_debut Median age at first sex
+	// @param median_age_union Median age at first marriage or cohabitation
 	template<typename popsize_t>
-	void set_median_age_debut(ModelData<popsize_t>& dat, const int sex, const double age);
-
-	// Initialize marriage/cohabitation rates from the median age at first union
-	// @param dat ModelData instance to initialize
-	// @param sex Sex of the population
-	// @param age Median age at first marriage/cohabitation
-	template<typename popsize_t>
-	void set_median_age_union(ModelData<popsize_t>& dat, const int sex, const double age);
+	void init_sexual_debut(ModelData<popsize_t>& dat, const int sex, const double median_age_debut, const double median_age_union);
 
 	// Initialize union dissolution rates from the mean duration of unions
 	// @param dat ModelData instance to initialize
@@ -129,14 +124,12 @@ namespace DP {
 	// +=+ implementation +=+
 
 	template<typename popsize_t>
-	void set_median_age_debut(ModelData<popsize_t>& dat, const int sex, const double age) {
-		// rate = log(2) / age; prop = 1.0 - exp(-rate); thus prop = 1.0 - 2^(-1/age)
-		dat.debut_prop(sex, 1.0 - std::exp2(-1.0 / (age - DP::AGE_ADULT_MIN)));
-	}
-
-	template<typename popsize_t>
-	void set_median_age_union(ModelData<popsize_t>& dat, const int sex, const double age) {
-		dat.union_prop(sex, 1.0 - std::exp2(-1.0 / (age - DP::AGE_ADULT_MIN)));
+	void init_sexual_debut(ModelData<popsize_t>& dat, const int sex, const double median_age_debut, const double median_age_union) {
+		const double rate_debut(std::numbers::ln2 / (median_age_debut - DP::AGE_ADULT_MIN));
+		const double rate_union(std::numbers::ln2 / (median_age_union - DP::AGE_ADULT_MIN));
+		dat.debut_prop(sex, 1.0 - std::exp(-rate_debut));
+		dat.union_prop(sex, 1.0 - std::exp(-rate_union));
+		dat.prop_debut_in_union(sex, rate_union / rate_debut);
 	}
 
 	template<typename popsize_t>
