@@ -11,8 +11,6 @@ namespace DP {
 	: pop(year_start, year_final),
 		dth(year_start, year_final),
 		dat(year_start, year_final),
-		_mix_union(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
-		_mix_other(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
 		_last_valid_time(-1) {
 		_year_first = year_start;
 		_year_final = year_final;
@@ -1114,6 +1112,7 @@ namespace DP {
 				}
 		}
 
+		//if (step == 0)
 		calc_balanced_mixing(t, popsize, prop_union);
 
 		for (sj = 0; sj < DP::N_SEX; ++sj) {
@@ -1324,7 +1323,7 @@ namespace DP {
 				}
 			}
 		}
-		
+
 		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
@@ -1338,7 +1337,7 @@ namespace DP {
 									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
 									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
 									_mix_other[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
-
+		
 									// marital and/or cohabiting partnerships
 									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
 									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
