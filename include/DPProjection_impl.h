@@ -1112,8 +1112,8 @@ namespace DP {
 				}
 		}
 
-		//if (step == 0)
-		calc_balanced_mixing(t, popsize, prop_union);
+		if (step == 0)
+			calc_balanced_mixing(t, popsize, prop_union);
 
 		for (sj = 0; sj < DP::N_SEX; ++sj) {
 			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
