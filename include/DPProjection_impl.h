@@ -1117,7 +1117,7 @@ namespace DP {
 
 		for (sj = 0; sj < DP::N_SEX; ++sj) {
 			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
-				for (rj = 0; rj < DP::N_POP_SEX[sj]; ++rj) // TODO: start from rj = DP::POP_NEVER instead of DP::POP_NOSEX
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj)
 					for (hj = 0; hj < DP::N_STAGE; ++hj)
 						for (vj = 0; vj < DP::N_VL; ++vj)
 							prev[sj][bj][rj][hj][vj] = 0.0;
