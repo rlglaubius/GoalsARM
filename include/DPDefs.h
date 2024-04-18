@@ -60,6 +60,9 @@ namespace DP {
 	// More general typedefs
 	typedef boost::multi_array_ref<double, 4> array4d_ref_t;
 
+	// Special-purpose typedefs
+	typedef boost::multi_array<double, 6> mixing_matrix_t;
+
 } // END namespace DP
 
 #endif // DPDEFS_H

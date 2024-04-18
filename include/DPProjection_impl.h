@@ -11,6 +11,8 @@ namespace DP {
 	: pop(year_start, year_final),
 		dth(year_start, year_final),
 		dat(year_start, year_final),
+		_mix_union(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
+		_mix_other(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
 		_last_valid_time(-1) {
 		_year_first = year_start;
 		_year_final = year_final;
@@ -1047,36 +1049,20 @@ namespace DP {
 		// TODO: This is quite slow. Can we approximate this well by doing calculations by age groups?
 		// TODO: add code to precalculate quantities that are constant throughout a year (transmission probabilities, maybe mixing and balancing are close enough?)
 		// TODO: needle-based transmission
-
-		const double eps = std::numeric_limits<double>::epsilon(); // padding to avoid divide-by-zero
 		const double e_condom = dat.effect_condom();
 
 		int si, bi, ri, sj, bj, rj; // i refers to HIV- partner, j to the HIV+
 		int ai, ui, uj, cj, hj, dj, vj, qij, zij;
 
 		double prop_transmit, vmmc_mult, new_hiv;
-		double bal_numer, bal_denom;
-		double bal_mix, acts_with, acts_wout, num_art, force_group;
-		double canmix_numer[DP::N_SEX][DP::N_POP], prefer_numer[DP::N_SEX][DP::N_POP];
+		double acts_with, acts_wout, num_art, force_group;
 		double force[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 		double popsize[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 		double prev[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_STAGE][DP::N_VL];
 		double per_act[DP::N_STI], sti_wgt[DP::N_STI];
 
-		// We calculate transmission in heterosexual marital or cohabiting "unions" separately from "other"
-		// partnerships that include same sex, casual, or commercial sexual partnerships. We make this distinction to
-		// ensure unions and other partnerships are both balanced
-		double mix_other, bal_other, canmix_denom, prefer_denom, assort;
-		double supply_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double supply_pop_other[DP::N_SEX][DP::N_POP];
-		double mix_pop_other[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
-		double force_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-
-		double mix_union, bal_union, union_denom;
 		double prop_union[DP::N_SEX][DP::N_POP];
-		double supply_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
-		double supply_pop_union[DP::N_SEX][DP::N_POP];
-		double mix_pop_union[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
+		double force_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 		double force_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 
 		// Transmission probability per partnership ptransmit[si][sj][qij][hj][vj][zij]
@@ -1128,52 +1114,7 @@ namespace DP {
 				}
 		}
 
-		// calculate partnership supply
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
-				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					supply_other[si][bi][ri] = popsize[si][bi][ri] * dat.partner_rate(t, si, bi, ri);
-					supply_union[si][bi][ri] = popsize[si][bi][ri] * prop_union[si][ri];
-				}
-		}
-
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-				supply_pop_other[si][ri] = 0.0;
-				supply_pop_union[si][ri] = 0.0;
-				for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-					supply_pop_other[si][ri] += supply_other[si][bi][ri];
-					supply_pop_union[si][ri] += supply_union[si][bi][ri];
-				}
-			}
-		}
-
-		// calculate mixing coefficient factors by behavioral risk group
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
-			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-				assort = dat.partner_assortativity(si, ri);
-				canmix_denom = eps;
-				prefer_denom = eps;
-				union_denom = eps;
-				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-						canmix_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 0); // groups can mix
-						prefer_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 1); // groups prefer to mix
-						canmix_denom += canmix_numer[sj][rj];
-						prefer_denom += prefer_numer[sj][rj];
-
-						mix_pop_union[si][ri][sj][rj] = supply_pop_union[sj][rj] * (si != sj);
-						union_denom += mix_pop_union[si][ri][sj][rj];
-					}
-				}
-				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-						mix_pop_other[si][ri][sj][rj] = (1.0 - assort) * canmix_numer[sj][rj] / canmix_denom + assort * prefer_numer[sj][rj] / prefer_denom;
-						mix_pop_union[si][ri][sj][rj] /= union_denom;
-					}
-				}
-			}
-		}
+		calc_balanced_mixing(t, popsize, prop_union);
 
 		for (sj = 0; sj < DP::N_SEX; ++sj) {
 			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
@@ -1275,33 +1216,21 @@ namespace DP {
 									sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
 
 									// non-marital, non-cohabiting partnerships
-									bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
-									bal_other = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_other = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									if (mix_other > 0.0 && bal_other > 0.0 && popsize[sj][bj][rj] > 0.0) {
+									if (_mix_other[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
 										qij = DP::BOND_TYPE[si][ri][sj][rj];
-										bal_mix = mix_other * bal_other;
-
 										force_group = 0.0;
 										for (zij = 0; zij < DP::N_STI; ++zij)
 											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_other[si][bi][ri] += bal_mix * force_group;
+										force_other[si][bi][ri] += _mix_other[si][bi][ri][sj][bj][rj] * force_group;
 									}
 
 									// marital or cohabiting partnerships
-									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
-									bal_union = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_union = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									if (mix_union > 0.0 && bal_union > 0.0 && popsize[sj][bj][rj] > 0.0) {
+									if (_mix_union[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
 										qij = DP::BOND_UNION;
-										bal_mix = mix_union * bal_union;
-
 										force_group = 0.0;
 										for (zij = 0; zij < DP::N_STI; ++zij)
 											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_union[si][bi][ri] += bal_mix * force_group;
+										force_union[si][bi][ri] += _mix_union[si][bi][ri][sj][bj][rj] * force_group;
 									}
 								}
 							}
@@ -1331,6 +1260,99 @@ namespace DP {
 				}
 			}
 		}
+	}
+
+	void Projection::calc_balanced_mixing(const int t, const double popsize[][DP::N_AGE_ADULT][DP::N_POP], const double prop_union[][DP::N_POP]) {
+		const double eps = std::numeric_limits<double>::epsilon(); // padding to avoid divide-by-zero
+
+		int si, bi, ri, sj, bj, rj;
+		double bal_numer, bal_denom, bal_raw, mix_raw;
+
+		double canmix_denom, prefer_denom, assort;
+		double canmix_numer[DP::N_SEX][DP::N_POP], prefer_numer[DP::N_SEX][DP::N_POP];
+		double supply_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		double supply_pop_other[DP::N_SEX][DP::N_POP];
+		double mix_pop_other[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
+
+		double union_denom;
+		double supply_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
+		double supply_pop_union[DP::N_SEX][DP::N_POP];
+		double mix_pop_union[DP::N_SEX][DP::N_POP][DP::N_SEX][DP::N_POP];
+
+		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
+				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+					supply_other[si][bi][ri] = popsize[si][bi][ri] * dat.partner_rate(t, si, bi, ri);
+					supply_union[si][bi][ri] = popsize[si][bi][ri] * prop_union[si][ri];
+				}
+		}
+
+		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+				supply_pop_other[si][ri] = 0.0;
+				supply_pop_union[si][ri] = 0.0;
+				for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+					supply_pop_other[si][ri] += supply_other[si][bi][ri];
+					supply_pop_union[si][ri] += supply_union[si][bi][ri];
+				}
+			}
+		}
+
+		// calculate mixing coefficient factors by behavioral risk group
+		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+				assort = dat.partner_assortativity(si, ri);
+				canmix_denom = eps;
+				prefer_denom = eps;
+				union_denom = eps;
+				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+						canmix_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 0); // groups can mix
+						prefer_numer[sj][rj] = supply_pop_other[sj][rj] * (dat.mix_structure(si, ri, sj, rj) > 1); // groups prefer to mix
+						canmix_denom += canmix_numer[sj][rj];
+						prefer_denom += prefer_numer[sj][rj];
+
+						mix_pop_union[si][ri][sj][rj] = supply_pop_union[sj][rj] * (si != sj);
+						union_denom += mix_pop_union[si][ri][sj][rj];
+					}
+				}
+				for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+						mix_pop_other[si][ri][sj][rj] = (1.0 - assort) * canmix_numer[sj][rj] / canmix_denom + assort * prefer_numer[sj][rj] / prefer_denom;
+						mix_pop_union[si][ri][sj][rj] /= union_denom;
+					}
+				}
+			}
+		}
+		
+		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+					for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
+						if (si == DP::MALE || sj == DP::MALE) {
+							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+								for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+									// non-marital, non-cohabiting partnerships
+									bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+									bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
+									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+									_mix_other[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
+
+									// marital and/or cohabiting partnerships
+									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
+									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+									_mix_union[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
 	}
 
 	void Projection::insert_adult_infections(const int t, const int step) {

@@ -3,6 +3,7 @@
 
 #include <DPConst.h>
 #include <DPData.h>
+#include <DPDefs.h>
 #include <Population.h>
 
 namespace DP {
@@ -63,6 +64,7 @@ namespace DP {
 		void advance_one_step_hiv_adult(const int time, const int step);
 		void calc_adult_art_uptake(const int time, const int step, sex_hiv_t& rate);
 		void calc_adult_infections(const int time, const int step);
+		void calc_balanced_mixing(const int time, const double popsize[][DP::N_AGE_ADULT][DP::N_POP], const double prop_union[][DP::N_POP]);
 		void insert_adult_infections(const int time, const int step);
 		void insert_clhiv_agein(const int time);
 		void insert_endyear_migrants(const int time);
@@ -78,6 +80,10 @@ namespace DP {
 		// if _last_valid_time < 0,  then the entire population projection in pop is invalid
 		// if _last_valid_time >= 0, then the population projection in pop is valid through _last_valid_year and invalid afterwards
 		int _last_valid_time;
+
+		//// Variables to cache mixing matrices.
+		mixing_matrix_t _mix_union; // marital and cohabiting partnerships
+		mixing_matrix_t _mix_other; // non-marital, non-cohabiting partnerships
 	};
 
 } // END namespace DP
