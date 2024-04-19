@@ -1202,31 +1202,33 @@ namespace DP {
 		for (pij = 0; pij < DP::N_PAIR; ++pij) {
 			si = DP::PAIR_SEX_1[pij];
 			sj = DP::PAIR_SEX_2[pij];
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-						for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-							sti_wgt[DP::STI_NONE] = (1.0 - dat.sti_prev(t, si, bi, ri)) * (1.0 - dat.sti_prev(t, sj, bj, rj));
-							sti_wgt[DP::STI_HIVN] = dat.sti_prev(t, si, bi, ri) * (1.0 - dat.sti_prev(t, sj, bj, rj));
-							sti_wgt[DP::STI_HIVP] = (1.0 - dat.sti_prev(t, si, bi, ri)) * dat.sti_prev(t, sj, bj, rj);
-							sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
+			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+					if (dat.mix_structure(si, ri, sj, rj) > 0) { // skip inner-loop calculations unless groups can mix
+						for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+								sti_wgt[DP::STI_NONE] = (1.0 - dat.sti_prev(t, si, bi, ri)) * (1.0 - dat.sti_prev(t, sj, bj, rj));
+								sti_wgt[DP::STI_HIVN] = dat.sti_prev(t, si, bi, ri) * (1.0 - dat.sti_prev(t, sj, bj, rj));
+								sti_wgt[DP::STI_HIVP] = (1.0 - dat.sti_prev(t, si, bi, ri)) * dat.sti_prev(t, sj, bj, rj);
+								sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
 		
-							// non-marital, non-cohabiting partnerships
-							if (_mix_other[pij][bi][ri][bj][rj] > 0.0) {
-								qij = DP::BOND_TYPE[si][ri][sj][rj];
-								force_group = 0.0;
-								for (zij = 0; zij < DP::N_STI; ++zij)
-									force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
-								force_other[si][bi][ri] += _mix_other[pij][bi][ri][bj][rj] * force_group;
-							}
+								// non-marital, non-cohabiting partnerships
+								if (_mix_other[pij][bi][ri][bj][rj] > 0.0) {
+									qij = DP::BOND_TYPE[si][ri][sj][rj];
+									force_group = 0.0;
+									for (zij = 0; zij < DP::N_STI; ++zij)
+										force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
+									force_other[si][bi][ri] += _mix_other[pij][bi][ri][bj][rj] * force_group;
+								}
 		
-							// marital or cohabiting partnerships
-							if (_mix_union[pij][bi][ri][bj][rj] > 0.0) {
-								qij = DP::BOND_UNION;
-								force_group = 0.0;
-								for (zij = 0; zij < DP::N_STI; ++zij)
-									force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
-								force_union[si][bi][ri] += _mix_union[pij][bi][ri][bj][rj] * force_group;
+								// marital or cohabiting partnerships
+								if (_mix_union[pij][bi][ri][bj][rj] > 0.0) {
+									qij = DP::BOND_UNION;
+									force_group = 0.0;
+									for (zij = 0; zij < DP::N_STI; ++zij)
+										force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
+									force_union[si][bi][ri] += _mix_union[pij][bi][ri][bj][rj] * force_group;
+								}
 							}
 						}
 					}
