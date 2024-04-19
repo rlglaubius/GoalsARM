@@ -1152,9 +1152,6 @@ namespace DP {
 		// TODO: doi:10.1002/14651858.CD003255 estimated condoms reduced incidence 80%, so could apply
 		// condom effect to incidence rate instead of per-act probabilities. Results should be approximately
 		// the same, but computation may be more efficient (fewer pow calls)
-		// RG 2022-01-25: I tried optimizing by unrolling sex loops so that we could easily skip
-		// the female-to-female transmission = 0 case. This did not improve performance, and may
-		// have actually slowed down calculation.
 		for (qij = 0; qij < DP::N_BOND; ++qij) { // TODO: calculate once per year instead of once per step
 			acts_with = dat.sex_acts(qij) * dat.condom_freq(t, qij);
 			acts_wout = dat.sex_acts(qij) - acts_with;
@@ -1215,7 +1212,7 @@ namespace DP {
 							sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
 		
 							// non-marital, non-cohabiting partnerships
-							if (_mix_other[pij][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+							if (_mix_other[pij][bi][ri][bj][rj] > 0.0) {
 								qij = DP::BOND_TYPE[si][ri][sj][rj];
 								force_group = 0.0;
 								for (zij = 0; zij < DP::N_STI; ++zij)
@@ -1224,7 +1221,7 @@ namespace DP {
 							}
 		
 							// marital or cohabiting partnerships
-							if (_mix_union[pij][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+							if (_mix_union[pij][bi][ri][bj][rj] > 0.0) {
 								qij = DP::BOND_UNION;
 								force_group = 0.0;
 								for (zij = 0; zij < DP::N_STI; ++zij)
