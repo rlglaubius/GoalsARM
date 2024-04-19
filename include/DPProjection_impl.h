@@ -1045,12 +1045,11 @@ namespace DP {
 
 	void Projection::calc_adult_infections(const int t, const int step) {
 		// TODO: This is quite slow. Can we approximate this well by doing calculations by age groups?
-		// TODO: add code to precalculate quantities that are constant throughout a year (transmission probabilities, maybe mixing and balancing are close enough?)
-		// TODO: needle-based transmission
+		// TODO: add code to precalculate quantities that are constant throughout a year (transmission probabilities)
 		const double e_condom = dat.effect_condom();
 
 		int si, bi, ri, sj, bj, rj; // i refers to HIV- partner, j to the HIV+
-		int ai, ui, uj, cj, hj, dj, vj, qij, zij;
+		int ai, ui, uj, cj, hj, dj, vj, pij, qij, zij;
 
 		double prop_transmit, vmmc_mult, new_hiv;
 		double acts_with, acts_wout, num_art, force_group;
@@ -1063,16 +1062,15 @@ namespace DP {
 		double force_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 		double force_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP];
 
-		// Transmission probability per partnership ptransmit[si][sj][qij][hj][vj][zij]
-		// si  HIV- partner sex
-		// sj  HIV+ partner sex
+		// Transmission probability per partnership ptransmit[pij][qij][hj][vj][zij]
+		// pij Sex of each partner (pij = (si, sj), si is the HIV- partner's sex, sj is the HIV+ partner's sex)
 		// qij Partnership type
 		// hj  HIV+ partner infection stage
 		// vj  HIV+ partner viral load
 		// zij STI symptom status
 		// We assume transmission risk is independent of age after adjusting for the strata above
-		double ptransmit[DP::N_SEX][DP::N_SEX][DP::N_BOND][DP::N_STAGE][DP::N_VL][DP::N_STI];
-		double mass[DP::N_SEX][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_BOND][DP::N_STI];
+		double ptransmit[DP::N_PAIR][DP::N_BOND][DP::N_STAGE][DP::N_VL][DP::N_STI];
+		double mass[DP::N_PAIR][DP::N_AGE_ADULT][DP::N_POP][DP::N_BOND][DP::N_STI];
 
 		if (step == 0) { // initialization at first step of year
 			for (ui = 0; ui < DP::N_SEX_MC; ++ui) {
@@ -1160,33 +1158,37 @@ namespace DP {
 		for (qij = 0; qij < DP::N_BOND; ++qij) { // TODO: calculate once per year instead of once per step
 			acts_with = dat.sex_acts(qij) * dat.condom_freq(t, qij);
 			acts_wout = dat.sex_acts(qij) - acts_with;
-			for (si = 0; si < DP::N_SEX; ++si)
-				for (sj = 0; sj < DP::N_SEX; ++sj)
-					for (hj = 0; hj < DP::N_STAGE; ++hj)
-						for (vj = 0; vj < DP::N_VL; ++vj) {
-							per_act[DP::STI_NONE] = dat.hiv_risk_per_act(si, sj, hj, vj);
-							per_act[DP::STI_HIVN] = per_act[DP::STI_NONE] * dat.effect_sti_hivneg() / (1.0 - per_act[DP::STI_NONE] + per_act[DP::STI_NONE] * dat.effect_sti_hivneg());
-							per_act[DP::STI_HIVP] = per_act[DP::STI_NONE] * dat.effect_sti_hivpos() / (1.0 - per_act[DP::STI_NONE] + per_act[DP::STI_NONE] * dat.effect_sti_hivpos());
-							per_act[DP::STI_BOTH] = std::max(per_act[DP::STI_HIVN], per_act[DP::STI_HIVP]); // like doi:10.1136/sti.2006.023531, we assume the only bigger STI effect applies
-							for (zij = 0; zij < DP::N_STI; ++zij) {
-								ptransmit[si][sj][qij][hj][vj][zij] = 1.0 - pow(1.0 - per_act[zij], acts_wout) * pow(1.0 - per_act[zij] * e_condom, acts_with);
-							}
+			for (pij = 0; pij < DP::N_PAIR; ++pij) {
+				si = DP::PAIR_SEX_1[pij];
+				sj = DP::PAIR_SEX_2[pij];
+				for (hj = 0; hj < DP::N_STAGE; ++hj)
+					for (vj = 0; vj < DP::N_VL; ++vj) {
+						per_act[DP::STI_NONE] = dat.hiv_risk_per_act(si, sj, hj, vj);
+						per_act[DP::STI_HIVN] = per_act[DP::STI_NONE] * dat.effect_sti_hivneg() / (1.0 - per_act[DP::STI_NONE] + per_act[DP::STI_NONE] * dat.effect_sti_hivneg());
+						per_act[DP::STI_HIVP] = per_act[DP::STI_NONE] * dat.effect_sti_hivpos() / (1.0 - per_act[DP::STI_NONE] + per_act[DP::STI_NONE] * dat.effect_sti_hivpos());
+						per_act[DP::STI_BOTH] = std::max(per_act[DP::STI_HIVN], per_act[DP::STI_HIVP]); // like doi:10.1136/sti.2006.023531, we assume the only bigger STI effect applies
+						for (zij = 0; zij < DP::N_STI; ++zij) {
+							ptransmit[pij][qij][hj][vj][zij] = 1.0 - pow(1.0 - per_act[zij], acts_wout) * pow(1.0 - per_act[zij] * e_condom, acts_with);
 						}
+					}
+			}
 		}
 
 		// Cache the infectiousness "mass", defined here as HIV prevalence
 		// in potential partners, weighted by the probability of transmission per partnership
-		for (si = 0; si < DP::N_SEX; ++si)
-			for (sj = 0; sj < DP::N_SEX; ++sj)
-				for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
-					for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj)
-						for (qij = 0; qij < DP::N_BOND; ++qij)
-							for (zij = 0; zij < DP::N_STI; ++zij) {
-								mass[si][sj][bj][rj][qij][zij] = 0.0;
-								for (hj = 0; hj < DP::N_STAGE; ++hj)
-									for (vj = 0; vj < DP::N_VL; ++vj)
-										mass[si][sj][bj][rj][qij][zij] += ptransmit[si][sj][qij][hj][vj][zij] * prev[sj][bj][rj][hj][vj];
-							}
+		for (pij = 0; pij < DP::N_PAIR; ++pij) {
+			si = DP::PAIR_SEX_1[pij];
+			sj = DP::PAIR_SEX_2[pij];
+			for (bj = 0; bj < DP::N_AGE_ADULT; ++bj)
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj)
+					for (qij = 0; qij < DP::N_BOND; ++qij)
+						for (zij = 0; zij < DP::N_STI; ++zij) {
+							mass[pij][bj][rj][qij][zij] = 0.0;
+							for (hj = 0; hj < DP::N_STAGE; ++hj)
+								for (vj = 0; vj < DP::N_VL; ++vj)
+									mass[pij][bj][rj][qij][zij] += ptransmit[pij][qij][hj][vj][zij] * prev[sj][bj][rj][hj][vj];
+						}
+		}
 
 		for (si = 0; si < DP::N_SEX; ++si) {
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
@@ -1200,9 +1202,9 @@ namespace DP {
 		// in this loop, ask yourself whether it could be precalculated
 		// outside this loop. If not, put the calculation at the highest
 		// level of this loop possible.
-		for (int pi(0); pi < DP::N_PAIR; ++pi) {
-			si = DP::PAIR_SEX_1[pi];
-			sj = DP::PAIR_SEX_2[pi];
+		for (pij = 0; pij < DP::N_PAIR; ++pij) {
+			si = DP::PAIR_SEX_1[pij];
+			sj = DP::PAIR_SEX_2[pij];
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
 					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
@@ -1213,21 +1215,21 @@ namespace DP {
 							sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
 		
 							// non-marital, non-cohabiting partnerships
-							if (_mix_other[pi][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+							if (_mix_other[pij][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
 								qij = DP::BOND_TYPE[si][ri][sj][rj];
 								force_group = 0.0;
 								for (zij = 0; zij < DP::N_STI; ++zij)
-									force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-								force_other[si][bi][ri] += _mix_other[pi][bi][ri][bj][rj] * force_group;
+									force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
+								force_other[si][bi][ri] += _mix_other[pij][bi][ri][bj][rj] * force_group;
 							}
 		
 							// marital or cohabiting partnerships
-							if (_mix_union[pi][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+							if (_mix_union[pij][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
 								qij = DP::BOND_UNION;
 								force_group = 0.0;
 								for (zij = 0; zij < DP::N_STI; ++zij)
-									force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-								force_union[si][bi][ri] += _mix_union[pi][bi][ri][bj][rj] * force_group;
+									force_group += mass[pij][bj][rj][qij][zij] * sti_wgt[zij];
+								force_union[si][bi][ri] += _mix_union[pij][bi][ri][bj][rj] * force_group;
 							}
 						}
 					}
@@ -1264,7 +1266,7 @@ namespace DP {
 	void Projection::calc_balanced_mixing(const int t, const double popsize[][DP::N_AGE_ADULT][DP::N_POP], const double prop_union[][DP::N_POP]) {
 		const double eps = std::numeric_limits<double>::epsilon(); // padding to avoid divide-by-zero
 
-		int si, bi, ri, sj, bj, rj;
+		int si, bi, ri, sj, bj, rj, pij;
 		double bal_numer, bal_denom, bal_raw, mix_raw;
 
 		double canmix_denom, prefer_denom, assort;
@@ -1324,9 +1326,9 @@ namespace DP {
 			}
 		}
 
-		for (int pi(0); pi < DP::N_PAIR; ++pi) {
-			si = DP::PAIR_SEX_1[pi];
-			sj = DP::PAIR_SEX_2[pi];
+		for (pij = 0; pij < DP::N_PAIR; ++pij) {
+			si = DP::PAIR_SEX_1[pij];
+			sj = DP::PAIR_SEX_2[pij];
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
 					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
@@ -1336,14 +1338,14 @@ namespace DP {
 							bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
 							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
 							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-							_mix_other[pi][bi][ri][bj][rj] = mix_raw * bal_raw;
+							_mix_other[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
 		
 							// marital and/or cohabiting partnerships
 							bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
 							bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
 							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
 							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-							_mix_union[pi][bi][ri][bj][rj] = mix_raw * bal_raw;
+							_mix_union[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
 						}
 					}
 				}
