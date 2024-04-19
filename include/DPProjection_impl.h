@@ -1200,45 +1200,45 @@ namespace DP {
 		// in this loop, ask yourself whether it could be precalculated
 		// outside this loop. If not, put the calculation at the highest
 		// level of this loop possible.
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		for (int pi(0); pi < DP::N_PAIR; ++pi) {
+			si = DP::PAIR_SEX_1[pi];
+			sj = DP::PAIR_SEX_2[pi];
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-						// we do not model female-to-female transmission, so we only
-						// execute the inner loop when at least one partner is male
-						if (si == DP::MALE || sj == DP::MALE) {
-							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-								for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-									sti_wgt[DP::STI_NONE] = (1.0 - dat.sti_prev(t, si, bi, ri)) * (1.0 - dat.sti_prev(t, sj, bj, rj));
-									sti_wgt[DP::STI_HIVN] = dat.sti_prev(t, si, bi, ri) * (1.0 - dat.sti_prev(t, sj, bj, rj));
-									sti_wgt[DP::STI_HIVP] = (1.0 - dat.sti_prev(t, si, bi, ri)) * dat.sti_prev(t, sj, bj, rj);
-									sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
-
-									// non-marital, non-cohabiting partnerships
-									if (_mix_other[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
-										qij = DP::BOND_TYPE[si][ri][sj][rj];
-										force_group = 0.0;
-										for (zij = 0; zij < DP::N_STI; ++zij)
-											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_other[si][bi][ri] += _mix_other[si][bi][ri][sj][bj][rj] * force_group;
-									}
-
-									// marital or cohabiting partnerships
-									if (_mix_union[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
-										qij = DP::BOND_UNION;
-										force_group = 0.0;
-										for (zij = 0; zij < DP::N_STI; ++zij)
-											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_union[si][bi][ri] += _mix_union[si][bi][ri][sj][bj][rj] * force_group;
-									}
-								}
+					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+						for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+							sti_wgt[DP::STI_NONE] = (1.0 - dat.sti_prev(t, si, bi, ri)) * (1.0 - dat.sti_prev(t, sj, bj, rj));
+							sti_wgt[DP::STI_HIVN] = dat.sti_prev(t, si, bi, ri) * (1.0 - dat.sti_prev(t, sj, bj, rj));
+							sti_wgt[DP::STI_HIVP] = (1.0 - dat.sti_prev(t, si, bi, ri)) * dat.sti_prev(t, sj, bj, rj);
+							sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
+		
+							// non-marital, non-cohabiting partnerships
+							if (_mix_other[pi][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+								qij = DP::BOND_TYPE[si][ri][sj][rj];
+								force_group = 0.0;
+								for (zij = 0; zij < DP::N_STI; ++zij)
+									force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
+								force_other[si][bi][ri] += _mix_other[pi][bi][ri][bj][rj] * force_group;
+							}
+		
+							// marital or cohabiting partnerships
+							if (_mix_union[pi][bi][ri][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+								qij = DP::BOND_UNION;
+								force_group = 0.0;
+								for (zij = 0; zij < DP::N_STI; ++zij)
+									force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
+								force_union[si][bi][ri] += _mix_union[pi][bi][ri][bj][rj] * force_group;
 							}
 						}
 					}
-					force[si][bi][ri] = dat.partner_rate(t, si, bi, ri) * force_other[si][bi][ri] + prop_union[si][ri] * force_union[si][bi][ri];
 				}
 			}
 		}
+
+		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si)
+			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi)
+				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri)
+					force[si][bi][ri] = dat.partner_rate(t, si, bi, ri) * force_other[si][bi][ri] + prop_union[si][ri] * force_union[si][bi][ri];
 
 		double force_pwid[DP::N_SEX];
 		force_pwid[DP::FEMALE] = dat.pwid_needle_sharing(t) * dat.pwid_infection_force(t, DP::FEMALE);
@@ -1324,34 +1324,31 @@ namespace DP {
 			}
 		}
 
-		for (si = DP::SEX_MIN; si <= DP::SEX_MAX; ++si) {
+		for (int pi(0); pi < DP::N_PAIR; ++pi) {
+			si = DP::PAIR_SEX_1[pi];
+			sj = DP::PAIR_SEX_2[pi];
 			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
 				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					for (sj = DP::SEX_MIN; sj <= DP::SEX_MAX; ++sj) {
-						if (si == DP::MALE || sj == DP::MALE) {
-							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-								for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-									// non-marital, non-cohabiting partnerships
-									bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
-									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									_mix_other[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
+					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+						for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+							// non-marital, non-cohabiting partnerships
+							bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+							bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
+							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+							_mix_other[pi][bi][ri][bj][rj] = mix_raw * bal_raw;
 		
-									// marital and/or cohabiting partnerships
-									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
-									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									_mix_union[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
-								}
-							}
+							// marital and/or cohabiting partnerships
+							bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+							bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
+							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+							_mix_union[pi][bi][ri][bj][rj] = mix_raw * bal_raw;
 						}
 					}
 				}
 			}
 		}
-
 	}
 
 	void Projection::insert_adult_infections(const int t, const int step) {

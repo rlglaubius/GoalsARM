@@ -87,6 +87,20 @@ namespace DP {
 
 	const int N_BOND = BOND_MAX - BOND_MIN + 1;
 
+	// Valid sex pairings for sexual transmission calculations
+	enum pair_t {
+		PAIR_F_M = 0,
+		PAIR_M_F = 1,
+		PAIR_M_M = 2,
+		PAIR_MIN = 0,
+		PAIR_MAX = 2
+	};
+
+	const int N_PAIR = PAIR_MAX - PAIR_MIN + 1;
+
+	const int PAIR_SEX_1[N_PAIR] = {FEMALE, MALE, MALE};
+	const int PAIR_SEX_2[N_PAIR] = {MALE, FEMALE, MALE};
+
 	// +=+ HIV infection stage constants +=======================================+
 
 	enum hiv_t {

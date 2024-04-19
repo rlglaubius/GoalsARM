@@ -82,8 +82,8 @@ namespace DP {
 		int _last_valid_time;
 
 		// Variables to cache mixing matrices.
-		double _mix_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // marital and cohabiting partnerships
-		double _mix_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // non-marital, non-cohabiting partnerships
+		double _mix_union[DP::N_PAIR][DP::N_AGE_ADULT][DP::N_POP][DP::N_AGE_ADULT][DP::N_POP]; // marital and cohabiting partnerships
+		double _mix_other[DP::N_PAIR][DP::N_AGE_ADULT][DP::N_POP][DP::N_AGE_ADULT][DP::N_POP]; // non-marital, non-cohabiting partnerships
 
 		//mixing_matrix_t _mix_union; // marital and cohabiting partnerships
 		//mixing_matrix_t _mix_other; // non-marital, non-cohabiting partnerships
