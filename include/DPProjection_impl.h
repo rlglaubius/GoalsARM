@@ -1328,23 +1328,25 @@ namespace DP {
 		for (pij = 0; pij < DP::N_PAIR; ++pij) {
 			si = DP::PAIR_SEX_1[pij];
 			sj = DP::PAIR_SEX_2[pij];
-			for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
-				for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
-					for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
-						for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
-							// non-marital, non-cohabiting partnerships
-							bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-							bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
-							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-							_mix_other[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
+			for (ri = DP::POP_NEVER; ri < DP::N_POP_SEX[si]; ++ri) {
+				for (rj = DP::POP_NEVER; rj < DP::N_POP_SEX[sj]; ++rj) {
+					if (dat.mix_structure(si, ri, sj, rj) > 0) {
+						for (bi = 0; bi < DP::N_AGE_ADULT; ++bi) {
+							for (bj = 0; bj < DP::N_AGE_ADULT; ++bj) {
+								// non-marital, non-cohabiting partnerships
+								bal_denom = supply_other[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+								bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
+								bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+								mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
+								_mix_other[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
 		
-							// marital and/or cohabiting partnerships
-							bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-							bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
-							bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
-							mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-							_mix_union[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
+								// marital and/or cohabiting partnerships
+								bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+								bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
+								bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
+								mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
+								_mix_union[pij][bi][ri][bj][rj] = mix_raw * bal_raw;
+							}
 						}
 					}
 				}
