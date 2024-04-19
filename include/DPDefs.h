@@ -2,6 +2,7 @@
 #define DPDEFS_H
 
 #include <boost/multi_array.hpp>
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace DP {
 	// Many typedefs specified here map to the same underlying boost::multi_array. We
@@ -59,6 +60,10 @@ namespace DP {
 
 	// More general typedefs
 	typedef boost::multi_array_ref<double, 4> array4d_ref_t;
+
+	// Special-purpose typedefs
+	//typedef boost::multi_array<double, 6> mixing_matrix_t;
+	typedef Eigen::Tensor<double, 6> mixing_matrix_t;
 
 } // END namespace DP
 

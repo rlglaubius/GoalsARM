@@ -11,6 +11,10 @@ namespace DP {
 	: pop(year_start, year_final),
 		dth(year_start, year_final),
 		dat(year_start, year_final),
+		//_mix_union(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
+		//_mix_other(mixing_matrix_t(boost::extents[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP])),
+		_mix_union(mixing_matrix_t(DP::N_SEX, DP::N_AGE_ADULT, DP::N_POP, DP::N_SEX, DP::N_AGE_ADULT, DP::N_POP)),
+		_mix_other(mixing_matrix_t(DP::N_SEX, DP::N_AGE_ADULT, DP::N_POP, DP::N_SEX, DP::N_AGE_ADULT, DP::N_POP)),
 		_last_valid_time(-1) {
 		_year_first = year_start;
 		_year_final = year_final;
@@ -1215,21 +1219,21 @@ namespace DP {
 									sti_wgt[DP::STI_BOTH] = dat.sti_prev(t, si, bi, ri) * dat.sti_prev(t, sj, bj, rj);
 
 									// non-marital, non-cohabiting partnerships
-									if (_mix_other[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+									if (_mix_other(si, bi, ri, sj, bj, rj) > 0.0 && popsize[sj][bj][rj] > 0.0) {
 										qij = DP::BOND_TYPE[si][ri][sj][rj];
 										force_group = 0.0;
 										for (zij = 0; zij < DP::N_STI; ++zij)
 											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_other[si][bi][ri] += _mix_other[si][bi][ri][sj][bj][rj] * force_group;
+										force_other[si][bi][ri] += _mix_other(si, bi, ri, sj, bj, rj) * force_group;
 									}
 
 									// marital or cohabiting partnerships
-									if (_mix_union[si][bi][ri][sj][bj][rj] > 0.0 && popsize[sj][bj][rj] > 0.0) {
+									if (_mix_union(si, bi, ri, sj, bj, rj) > 0.0 && popsize[sj][bj][rj] > 0.0) {
 										qij = DP::BOND_UNION;
 										force_group = 0.0;
 										for (zij = 0; zij < DP::N_STI; ++zij)
 											force_group += mass[si][sj][bj][rj][qij][zij] * sti_wgt[zij];
-										force_union[si][bi][ri] += _mix_union[si][bi][ri][sj][bj][rj] * force_group;
+										force_union[si][bi][ri] += _mix_union(si, bi, ri, sj, bj, rj) * force_group;
 									}
 								}
 							}
@@ -1336,14 +1340,14 @@ namespace DP {
 									bal_numer = supply_other[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_other[sj][rj][si][ri];
 									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
 									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_other[si][ri][sj][rj];
-									_mix_other[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
+									_mix_other(si, bi, ri, sj, bj, rj) = mix_raw * bal_raw;
 		
 									// marital and/or cohabiting partnerships
 									bal_denom = supply_union[si][bi][ri] * dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
 									bal_numer = supply_union[sj][bj][rj] * dat.partner_preference_age(sj, bj, si, bi) * mix_pop_union[sj][rj][si][ri];
 									bal_raw = (bal_denom > 0.0 ? sqrt(bal_numer / bal_denom) : 0.0);
 									mix_raw = dat.partner_preference_age(si, bi, sj, bj) * mix_pop_union[si][ri][sj][rj];
-									_mix_union[si][bi][ri][sj][bj][rj] = mix_raw * bal_raw;
+									_mix_union(si, bi, ri, sj, bj, rj) = mix_raw * bal_raw;
 								}
 							}
 						}

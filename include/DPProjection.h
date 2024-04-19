@@ -81,12 +81,12 @@ namespace DP {
 		// if _last_valid_time >= 0, then the population projection in pop is valid through _last_valid_year and invalid afterwards
 		int _last_valid_time;
 
-		// Variables to cache mixing matrices.
-		double _mix_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // marital and cohabiting partnerships
-		double _mix_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // non-marital, non-cohabiting partnerships
+		//// Variables to cache mixing matrices.
+		//double _mix_union[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // marital and cohabiting partnerships
+		//double _mix_other[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP][DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP]; // non-marital, non-cohabiting partnerships
 
-		//mixing_matrix_t _mix_union; // marital and cohabiting partnerships
-		//mixing_matrix_t _mix_other; // non-marital, non-cohabiting partnerships
+		mixing_matrix_t _mix_union; // marital and cohabiting partnerships
+		mixing_matrix_t _mix_other; // non-marital, non-cohabiting partnerships
 	};
 
 } // END namespace DP
