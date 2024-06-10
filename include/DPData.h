@@ -134,6 +134,9 @@ namespace DP {
 		inline double pasfrs(const int t, const int a) const {return _pasfrs[t][a - DP::AGE_BIRTH_MIN];}
 		inline void pasfrs(const int t, const int a, const double value) {_pasfrs[t][a - DP::AGE_BIRTH_MIN] = value;}
 
+		inline double mtct_rate(const int mtct_timing, const int mtct_regimen, const int mtct_cd4) const {return _mtct_rate[mtct_timing][mtct_regimen][mtct_cd4];}
+		inline void mtct_rate(const int mtct_timing, const int mtct_regimen, const int mtct_cd4, const double value) {_mtct_rate[mtct_timing][mtct_regimen][mtct_cd4] = value;}
+
 		inline double births(const int t, const int s) const {return (*_births)[t][s];}
 		inline void births(const int t, const int s, const popsize_t value) {(*_births)[t][s] = value;}
 
@@ -289,6 +292,9 @@ namespace DP {
 		bool   _keypop_stay[DP::N_SEX][DP::N_POP_KEY];                      // indicates whether key population membership is lifelong (true) or not (false)
 		double _keypop_age_dist[DP::N_SEX][DP::N_AGE_ADULT][DP::N_POP_KEY]; // proportion of sex s & pop r who are age a
 		double _keypop_married[DP::N_SEX][DP::N_POP_KEY];                   // proportion of key populations who are married
+
+		// Model inputs - MTCT parameters
+		double _mtct_rate[DP::N_MTCT][DP::N_MTCT_RX][DP::N_MTCT_CD4]; // MTCT rates by perinatal/breastfeeding timing, PMTCT regimen, and maternal CD4 count
 
 		bool _direct_incidence; // toggle for direct vs. mechanistic HIV incidence calculation
 

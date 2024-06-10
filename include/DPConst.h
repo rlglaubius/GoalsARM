@@ -210,6 +210,57 @@ namespace DP {
 
 	const int N_VL = VL_MAX - VL_MIN + 1;
 
+	// +=+ PMTCT constants +=====================================================+
+	enum mtct_t {
+		MTCT_PN = 0, // perinatal transmission
+		MTCT_BF = 1, // breastfeeding transmission
+
+		MTCT_BF_00_06 = 1, // child acquired HIV during breastfeeding in months [0,6) of life
+		MTCT_BF_06_12 = 2, // child acquired HIV during breastfeeding in months [6,12) of life
+		MTCT_BF_12_UP = 3, // child acquired HIV during breastfeeding in months [12,\infty) of life
+
+		// Bounds for looping over PMTCT regimens during pregnancy and breastfeeding
+		MTCT_MIN = 0,
+		MTCT_MAX = 1,
+
+		// Bounds for looping over timing of pediatric HIV acquisition
+		MTCT_TIME_MIN = 0,
+		MTCT_TIME_MAX = 3
+	};
+
+	const int N_MTCT = MTCT_MAX - MTCT_MIN + 1;
+	const int N_MTCT_TIME = MTCT_TIME_MAX - MTCT_TIME_MIN + 1;
+
+	// PMTCT regimen constants
+	enum mtct_rx_t {
+		MTCT_RX_NONE       = 0, // No prophylaxis
+		MTCT_RX_INCI       = 1, // incident infection during pregnancy
+		MTCT_RX_SDNVP      = 2, // Single-dose nevirapine
+		MTCT_RX_DUAL       = 3, // WHO 2006 dual ARV regimens (described in doi:10.1136/sextrans-2012-050709)
+		MTCT_RX_OPT_A      = 4, // Option A (described in ISBN: 978 92 4 159981 8)
+		MTCT_RX_OPT_B      = 5, // Option B (described in ISBN: 978 92 4 159981 8)
+		MTCT_RX_ART_BEFORE = 6, // ART initiated before current pregnancy
+		MTCT_RX_ART_DURING = 7, // ART initiated during current pregnancy >=4 weeks before delivery
+		MTCT_RX_ART_LATE   = 8, // ART initiated during current pregnancy <4 weeks before delivery
+
+		MTCT_RX_MIN = 0,
+		MTCT_RX_MAX = 8
+	};
+
+	const int N_MTCT_RX = MTCT_RX_MAX - MTCT_RX_MIN + 1;
+
+	// CD4 categories used to distinguish MTCT rates
+	enum mtct_cd4_t {
+		MTCT_CD4_000_200 = 0,
+		MTCT_CD4_250_350 = 1,
+		MTCT_CD4_GEQ_350 = 2,
+
+		MTCT_CD4_MIN = 0,
+		MTCT_CD4_MAX = 2
+	};
+
+	const int N_MTCT_CD4 = MTCT_CD4_MAX - MTCT_CD4_MIN + 1;
+
 	// +=+ STI symptomatic status constants +====================================+
 	enum sti_t {
 		STI_NONE = 0, // STI symptoms present in neither partner
