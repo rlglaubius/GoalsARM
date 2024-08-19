@@ -783,9 +783,15 @@ namespace DP {
 	}
 
 	void Projection::advance_one_year_hiv_child(const int t) {
-		double births_exposed(calc_births_hiv_exposed(t));
+		double births_exposed;
+		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+2]);
+		array2d_t births(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+1]);
+		tally_reproductive_age_females(t, females);
+		calc_births_hiv_exposed(t, females, births);
+
+		births_exposed = std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
+
 		dat.births_hiv_exposed(t, births_exposed);
-		// TODO: pediatric HIV infection and progression calculations
 	}
 
 	void Projection::advance_one_step_hiv_adult(const int t, const int step) {
@@ -1526,56 +1532,64 @@ namespace DP {
 		}
 	}
 
-	double Projection::calc_births_hiv_exposed(const int t) {
-		double num_hiv[N_HIV_ADULT], num_art, num_neg, num_all;
-		double frr_hiv[N_HIV_ADULT], frr_art;
-		double raw_hiv, asfr;
-		double births_exposed(0.0);
-		int b, r, h, d, u;
+	void Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_t& births) {
+		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2);
 
+		int b, h;
+		double frr_hiv[N_HIV_ADULT], frr_art, asfr, pop, hiv;
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 			asfr = dat.tfr(t) * dat.pasfrs(t, b + DP::AGE_BIRTH_MIN);
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				frr_hiv[h] = dat.frr_age_no_art(t,b) * dat.frr_cd4_no_art(h);
+			frr_art = dat.frr_age_on_art(b);
 
-			num_neg = 0.0;
-			num_art = 0.0;
-			std::fill(num_hiv, num_hiv + DP::N_HIV_ADULT, 0.0);
+			pop = 0;
+			for (h = 0; h < females.shape()[1]; ++h)
+				pop += females[b][h];
 
-			// count reproductive-age women. Note that we sum over years t-1 and year t because we
-			// ultimately want to account for a half-year exposure to age-specific rates before
-			// and after women's birthdays each year. We defer the averaging until the very end
-			// of the calculation.
-			for (u = 0; u < 2; ++u) {
-				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
-					num_neg += pop.adult_neg(t - u, DP::FEMALE, b, r);
+			hiv = frr_art * females[b][H_ART];
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				hiv += frr_hiv[h] * females[b][h];
+			
+			births[b][H_ART] = asfr * pop * frr_art * females[b][H_ART] / (females[b][H_NEG] + hiv);
+			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
+				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][H_NEG] + hiv);
+		}
+	}
 
-				// recent ART initiates (DTX_ART1) are assumed to have the same fertility as women not on ART
+	/// Count the number of reproductive-age females by HIV status, averaged over
+	/// consecutive years.
+	/// @param t year to tally women
+	/// @param females 2d array by age (0..34 for ages 15..49) and 9 HIV states.
+	/// HIV states 0..6 store HIV+ females not on ART or on ART for less than 6
+	/// months by disease stages HIV_PRIMARY..HIV_000_050. State 7 stores HIV+
+	/// females who have been on ART for at least six months, state 8 stores HIV-
+	/// females.
+	void Projection::tally_reproductive_age_females(const int t, array2d_t& females) {
+		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2);
+		int b, d, h, u, r;
+
+		// Calculate numbers of reproductive-age females by age and HIV status. We
+		// sum over years t-1 and year t to account for a half-year exposure to
+		// age-specific rates before and after women's birthdays each year.
+		std::fill_n(females.data(), females.num_elements(), 0.0);
+		for (u = 0; u < 2; ++u) {
+			for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
+					females[b][H_NEG] += pop.adult_neg(t-u, DP::FEMALE, b, r);
 					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
 						for (d = DP::DTX_UNAWARE; d <= DP::DTX_ART1; ++d)
-							num_hiv[h] += pop.adult_hiv(t - u, DP::FEMALE, b, r, h, d);
+							females[b][h] += pop.adult_hiv(t-u, DP::FEMALE, b, r, h, d);
 						for (d = DP::DTX_ART2; d <= DP::DTX_MAX; ++d)
-							num_art += pop.adult_hiv(t - u, DP::FEMALE, b, r, h, d);
+							females[b][H_ART] += pop.adult_hiv(t-u, DP::FEMALE, b, r, h, d);
 					}
 				}
 			}
-
-			num_all = num_neg + num_art;
-			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-				num_all += num_hiv[h];
-
-			frr_art = dat.frr_age_on_art(b);
-			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-				frr_hiv[h] = dat.frr_age_no_art(t,b) * dat.frr_cd4_no_art(h);
-
-			raw_hiv = num_art * frr_art;
-			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-				raw_hiv += num_hiv[h] * frr_hiv[h];
-
-			births_exposed += asfr * num_all * raw_hiv / (num_neg + raw_hiv);
 		}
 
-		// Multiply by 0.5 to average exposures before and after women's birthdays.
-		return(0.5 * births_exposed);
+		for (b = 0; b < females.shape()[0]; ++b)
+			for (h = 0; h < females.shape()[1]; ++h)
+				females[b][h] *= 0.5;
 	}
 
 	double Projection::calc_births(const int t) {
