@@ -116,7 +116,10 @@ result_t test_births() {
 result_t test_births_hiv_exposed() {
 	const int year_first(1970), year_final(1971), num_years(2);
 	const double target_births(26895), tolerance(0.5);
-	double births;
+	double births_exposed, births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT + 1)];
+
+	DP::array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT + 2]);
+	DP::array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT + 1]);
 
 	boost::multi_array<double, 3> child_neg(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD]);
 	boost::multi_array<double, 5> child_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD][DP::N_HIV][DP::N_DTX]);
@@ -132,8 +135,9 @@ result_t test_births_hiv_exposed() {
 	proj.pop.share_storage(adult_neg.data(), adult_hiv.data(), child_neg.data(), child_hiv.data());
 	setup_projection(proj);
 
-	births = proj.calc_births_hiv_exposed(year_final - year_first);
-	return fabs(births - target_births) < tolerance ? TEST_SUCCESS : TEST_FAILURE;
+	proj.tally_reproductive_age_females(year_final - year_first, females);
+	births_exposed = proj.calc_births_hiv_exposed(year_final - year_first, females, births);
+	return fabs(births_exposed - target_births) < tolerance ? TEST_SUCCESS : TEST_FAILURE;
 }
 
 struct TestRecord {
