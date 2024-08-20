@@ -784,13 +784,12 @@ namespace DP {
 
 	void Projection::advance_one_year_hiv_child(const int t) {
 		double births_exposed;
+		double births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT+1)];
+
 		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+2]);
-		array2d_t births(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+1]);
+		array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+1]);
 		tally_reproductive_age_females(t, females);
-		calc_births_hiv_exposed(t, females, births);
-
-		births_exposed = std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
-
+		births_exposed = calc_births_hiv_exposed(t, females, births);
 		dat.births_hiv_exposed(t, births_exposed);
 	}
 
@@ -1532,11 +1531,12 @@ namespace DP {
 		}
 	}
 
-	void Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_t& births) {
+	double Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_ref_t& births) {
 		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2);
 
 		int b, h;
 		double frr_hiv[N_HIV_ADULT], frr_art, asfr, pop, hiv;
+
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 			asfr = dat.tfr(t) * dat.pasfrs(t, b + DP::AGE_BIRTH_MIN);
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
@@ -1555,6 +1555,7 @@ namespace DP {
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][H_NEG] + hiv);
 		}
+		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
 	}
 
 	/// Count the number of reproductive-age females by HIV status, averaged over

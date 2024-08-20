@@ -39,7 +39,8 @@ namespace DP {
 
 		// Public calculation methods
 		double calc_births(const int time);
-		void calc_births_hiv_exposed(const int time, const array2d_t& females, array2d_t& births);
+		double calc_births_hiv_exposed(const int time, const array2d_t& females, array2d_ref_t& births);
+		void tally_reproductive_age_females(const int time, array2d_t& females);
 
 	private:
 		// Projection is not default-constructible - start and final years must be specified
@@ -69,8 +70,6 @@ namespace DP {
 		void insert_clhiv_agein(const int time);
 		void insert_endyear_migrants(const int time);
 		void seed_epidemic(const int time, const double prev);
-
-		void tally_reproductive_age_females(const int time, array2d_t& females);
 
 		void calc_deaths(const int time);
 

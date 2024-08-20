@@ -57,8 +57,10 @@ namespace DP {
 	// to CD4 categories and columns for (sex,age) pairs
 	typedef boost::multi_array_ref<double, 2> cd4_sex_age_ref_t;
 
-	// More general typedefs
+	// General-purpose typedefs
 	typedef boost::multi_array<double, 2> array2d_t;
+
+	typedef boost::multi_array_ref<double, 2> array2d_ref_t;
 	typedef boost::multi_array_ref<double, 4> array4d_ref_t;
 
 } // END namespace DP
