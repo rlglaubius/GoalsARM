@@ -40,6 +40,8 @@ namespace DP {
 	typedef boost::multi_array<double, 3> sex_age_hiv_t;
 	typedef boost::multi_array<double, 2> sex_pop_t;
 
+	typedef boost::multi_array<double, 5> mixing_matrix_t;
+
 	// boost::multi_array instances manage their own memory. multi_array_ref
 	// instances provide a multi_array interface, but use memory allocated
 	// elsewhere. We can use these *_ref_t types to use data in preallocated

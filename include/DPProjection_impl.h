@@ -11,6 +11,8 @@ namespace DP {
 	: pop(year_start, year_final),
 		dth(year_start, year_final),
 		dat(year_start, year_final),
+		_mix_union(boost::extents[DP::N_PAIR][DP::N_AGE_ADULT][DP::N_POP][DP::N_AGE_ADULT][DP::N_POP]),
+		_mix_other(boost::extents[DP::N_PAIR][DP::N_AGE_ADULT][DP::N_POP][DP::N_AGE_ADULT][DP::N_POP]),
 		_last_valid_time(-1) {
 		_year_first = year_start;
 		_year_final = year_final;
