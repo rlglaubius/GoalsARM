@@ -233,18 +233,19 @@ namespace DP {
 
 	// PMTCT regimen constants
 	enum mtct_rx_t {
-		MTCT_RX_NONE       = 0, // No prophylaxis
-		MTCT_RX_INCI       = 1, // incident infection during pregnancy
-		MTCT_RX_SDNVP      = 2, // Single-dose nevirapine
-		MTCT_RX_DUAL       = 3, // WHO 2006 dual ARV regimens (described in doi:10.1136/sextrans-2012-050709)
-		MTCT_RX_OPT_A      = 4, // Option A (described in ISBN: 978 92 4 159981 8)
-		MTCT_RX_OPT_B      = 5, // Option B (described in ISBN: 978 92 4 159981 8)
-		MTCT_RX_ART_BEFORE = 6, // ART initiated before current pregnancy
-		MTCT_RX_ART_DURING = 7, // ART initiated during current pregnancy >=4 weeks before delivery
-		MTCT_RX_ART_LATE   = 8, // ART initiated during current pregnancy <4 weeks before delivery
+		MTCT_RX_SDNVP      = 0, // Single-dose nevirapine
+		MTCT_RX_DUAL       = 1, // WHO 2006 dual ARV regimens (described in doi:10.1136/sextrans-2012-050709)
+		MTCT_RX_OPT_A      = 2, // Option A (described in ISBN: 978 92 4 159981 8)
+		MTCT_RX_OPT_B      = 3, // Option B (described in ISBN: 978 92 4 159981 8)
+		MTCT_RX_ART_BEFORE = 4, // ART initiated before current pregnancy
+		MTCT_RX_ART_DURING = 5, // ART initiated during current pregnancy >=4 weeks before delivery
+		MTCT_RX_ART_LATE   = 6, // ART initiated during current pregnancy <4 weeks before delivery
+		MTCT_RX_NONE       = 7, // No prophylaxis
+		MTCT_RX_STOP       = 8, // Stopped prophylaxis
+		MTCT_RX_INCI       = 9, // incident infection during pregnancy
 
 		MTCT_RX_MIN = 0,
-		MTCT_RX_MAX = 8
+		MTCT_RX_MAX = 9
 	};
 
 	const int N_MTCT_RX = MTCT_RX_MAX - MTCT_RX_MIN + 1;
@@ -252,7 +253,7 @@ namespace DP {
 	// CD4 categories used to distinguish MTCT rates
 	enum mtct_cd4_t {
 		MTCT_CD4_000_200 = 0,
-		MTCT_CD4_250_350 = 1,
+		MTCT_CD4_200_350 = 1,
 		MTCT_CD4_GEQ_350 = 2,
 
 		MTCT_CD4_MIN = 0,
@@ -365,6 +366,28 @@ namespace DP {
 		{0.038804, 0.090309, 0.275928, 0.259926, 0.255726, 0.079308, 0.0},  // h=HIV_PRC_11_15
 		{0.018616, 0.018616, 0.099218, 0.165066, 0.363501, 0.334984, 0.0},  // h=HIV_PRC_05_10
 		{0.000000, 0.001400, 0.009901, 0.007101, 0.049605, 0.931993, 0.0}}; // h=HIV_PRC_LT_05
+
+	// Map adult HIV disease stages to the corresponding CD4 categories used to
+	// calculate mother-to-child transmission
+#ifndef SPECTRUM_CD4
+	const mtct_cd4_t MTCT_CD4[N_HIV_ADULT] = {
+		MTCT_CD4_GEQ_350,  // HIV_PRIMARY
+		MTCT_CD4_GEQ_350,  // HIV_GEQ_500
+		MTCT_CD4_GEQ_350,  // HIV_350_500
+		MTCT_CD4_200_350,  // HIV_200_350,
+		MTCT_CD4_000_200,  // HIV_100_200
+		MTCT_CD4_000_200,  // HIV_050_100
+		MTCT_CD4_000_200}; // HIV_000_050
+#else
+	const mtct_cd4_t MTCT_CD4[N_HIV_ADULT] = {
+		MTCT_CD4_GEQ_350,  // CD4>500
+		MTCT_CD4_GEQ_350,  // 350-500
+		MTCT_CD4_200_350,  // 250-350
+		MTCT_CD4_200_350,  // 200-250,
+		MTCT_CD4_000_200,  // 100-200
+		MTCT_CD4_000_200,  //  50-100
+		MTCT_CD4_000_200}; //   0-50
+#endif
 
 }
 

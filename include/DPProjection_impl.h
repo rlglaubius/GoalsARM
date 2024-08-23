@@ -785,11 +785,11 @@ namespace DP {
 	}
 
 	void Projection::advance_one_year_hiv_child(const int t) {
-		double births_exposed;
-		double births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT+1)];
+		// TODO: factor into calculation of a) new child infections & b) pediatric HIV dynamics
+		double births_exposed, births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT+3)];
+		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+3]);
+		array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+3]);
 
-		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+2]);
-		array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+1]);
 		tally_reproductive_age_females(t, females);
 		births_exposed = calc_births_hiv_exposed(t, females, births);
 		dat.births_hiv_exposed(t, births_exposed);
@@ -1534,7 +1534,7 @@ namespace DP {
 	}
 
 	double Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_ref_t& births) {
-		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2);
+		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
 
 		int b, h;
 		double frr_hiv[N_HIV_ADULT], frr_art, asfr, pop, hiv;
@@ -1545,8 +1545,10 @@ namespace DP {
 				frr_hiv[h] = dat.frr_age_no_art(t,b) * dat.frr_cd4_no_art(h);
 			frr_art = dat.frr_age_on_art(b);
 
+			// Calculate the total number of women. We do not include newly-infected women
+			// because they are assumed to be included in the population living with HIV.
 			pop = 0;
-			for (h = 0; h < females.shape()[1]; ++h)
+			for (h = H_HIV; h <= H_NEG; ++h)
 				pop += females[b][h];
 
 			hiv = frr_art * females[b][H_ART];
@@ -1560,6 +1562,38 @@ namespace DP {
 		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
 	}
 
+	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
+		const double eps = std::numeric_limits<double>::epsilon();
+		int b, h, u;
+		double hiv_perinatal(0.0), share, denom;
+		double n_moms_cd4[N_MTCT_CD4] = {0.0, 0.0, 0.0};
+
+		// Rob Glaubius 2024-08-23: These are hard-coded to allow debugging while I
+		// seek resolution on some questions about how postnatal sdNVP, dual ARV,
+		// Option A and Option should be handled, which may change how we organize
+		// inputs and define constants for these regimens.
+		double n_pmtct[N_MTCT][MTCT_RX_ART_LATE - MTCT_RX_SDNVP + 1] = {
+			{2000, 3000, 4000, 5000, 6000, 7000, 8000},
+			{  -1,   -1, 6000, 2000,   -1,   -1,   -1}};
+
+		for (b = 0; b < DP::N_AGE_BIRTH; ++b)
+			for (h = 0; h < DP::N_HIV_ADULT; ++h)
+				n_moms_cd4[MTCT_CD4[h]] += females[b][h];
+
+		for (h = DP::MTCT_CD4_MIN; h <= DP::MTCT_CD4_MAX; ++h)
+			hiv_perinatal += n_moms_cd4[h] * dat.mtct_rate(MTCT_PN, MTCT_RX_NONE, h);
+
+		// Insert newly-infected children into the population
+		denom = eps;
+		for (u = 0; u < DP::N_SEX_MC; ++u)
+			denom += pop.child_neg(t, u, 0);
+
+		for (u = 0; u < DP::N_SEX_MC; ++u) {
+			share = pop.child_neg(t, u, 0) / denom;
+			dat.new_hiv_infections(t, hiv_perinatal * share, 0, DP::POP_NOSEX, hiv_perinatal);
+		}
+	}
+
 	/// Count the number of reproductive-age females by HIV status, averaged over
 	/// consecutive years.
 	/// @param t year to tally women
@@ -1569,7 +1603,7 @@ namespace DP {
 	/// females who have been on ART for at least six months, state 8 stores HIV-
 	/// females.
 	void Projection::tally_reproductive_age_females(const int t, array2d_t& females) {
-		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2);
+		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
 		int b, d, h, u, r;
 
 		// Calculate numbers of reproductive-age females by age and HIV status. We
@@ -1591,8 +1625,10 @@ namespace DP {
 		}
 
 		for (b = 0; b < females.shape()[0]; ++b)
-			for (h = 0; h < females.shape()[1]; ++h)
+			for (h = H_HIV; h <= H_NEG; ++h)
 				females[b][h] *= 0.5;
+
+		// TODO: tally new infections in females[b][H_NEW]
 	}
 
 	double Projection::calc_births(const int t) {
