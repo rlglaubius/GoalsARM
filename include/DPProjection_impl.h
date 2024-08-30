@@ -1558,6 +1558,7 @@ namespace DP {
 			births[b][H_ART] = asfr * pop * frr_art * females[b][H_ART] / (females[b][H_NEG] + hiv);
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][H_NEG] + hiv);
+			births[b][H_NEG] = asfr * pop * females[b][H_NEG] / (females[b][H_NEG] + hiv);
 		}
 		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
 	}
@@ -1565,59 +1566,86 @@ namespace DP {
 	/// @param females input 35x10 array of reproductive age women by age and HIV state. see tally_reproductive_age_females.
 	/// @param exposed_births input 35x10 array of births by maternal age and HIV state, same as females array.
 	/// @param infections output 19x10 array of new child infections timing (perinatal, [0,2), [2,4), ..., [34,36) months and PMTCT regimen (MTCT_RX_SDNVP..MTCT_RX_INCI)
+	/// 
+	// TODO:
+	// Tablesetting
+	// [x] Expose this calculation to Python to simplify cross-checking against mtct-calc-2024-08-19.xlsx
+	// [ ] Add an example tab in mtct-calc-2024-08-19.xlsx that includes ART, check against Delphi (mtct-experimental branch, moz-aim2024-636-modBF.pjnz)
+	// Preprocessing
+	// [ ] If PMTCT entered as %, use PMTCT need (# births to HIV+ women) to convert these to absolute numbers.
+	// [ ] If PMTCT entered as #, check if prenatal regimens exceed need. If so, rescale numbers to match need.
+	// [ ] Calculate HIV incidence in pregnant women.
+	// [ ] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
+	// [ ] Calculate MTCT rates for women on prenatal Option A and Option B, accounting for overflow of mothers with CD4>350
+	// [ ] Calculate MTCT rates for women on postnatal Option A and Option B, accounting for overflow of mothers with CD4>350
+	// Calculation
+	// [ ] Calculate vertical transmission at delivery by regimen
+	// [ ] Calculate number of mothers who have not transmitted at delivery by regimen
+	// [ ] Calculate number of mothers who have not transmitted at k\in{2,4,...,36} months since delivery by regimen
+	// [ ] Use breastfeeding inputs on or off ART to calculate transmissions from mothers who have not yet transmitted
+	// Regimen checklist:
+	// [ ] MTCT_RX_SDNVP			[x] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_DUAL				[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_OPT_A			[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_OPT_B			[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_ART_BEFORE	[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_ART_DURING	[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_ART_LATE		[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_NONE				[x] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_STOP				[ ] MTCT_PN [ ] MTCT_BF
+	// [ ] MTCT_RX_INCI				[x] MTCT_PN [ ] MTCT_BF (this uses age-specific incidence and age-specific births where AIM uses age-averaged incidence and total births to HIV- women)
 	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
+		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
+		const double pregnancy_duration(9.0 / 12.0);
+
 		const double eps = std::numeric_limits<double>::epsilon();
-		int b, h, u;
-		double hiv_perinatal(0.0), share, denom;
-		double n_moms_cd4[N_MTCT_CD4] = {0.0, 0.0, 0.0};
+		int b, h, r, u;
+		double hiv_perinatal(0.0), incidence, share, denom, prop_none;
+		double n_moms_cd4[N_MTCT_CD4] = {0.0, 0.0, 0.0}, n_moms_art(0.0), n_moms_hiv(0.0), n_moms_arv(0.0);
 
 		// Rob Glaubius 2024-08-23: These are hard-coded to allow debugging while I
 		// seek resolution on some questions about how postnatal sdNVP, dual ARV,
 		// Option A and Option should be handled, which may change how we organize
 		// inputs and define constants for these regimens.
+		//double n_pmtct[N_MTCT][MTCT_RX_ART_LATE - MTCT_RX_SDNVP + 1] = {
+		//	{2000, 3000, 4000, 5000, 6000, 7000, 8000},
+		//	{  -1,   -1, 6000, 2000,   -1,   -1,   -1}};
 		double n_pmtct[N_MTCT][MTCT_RX_ART_LATE - MTCT_RX_SDNVP + 1] = {
-			{2000, 3000, 4000, 5000, 6000, 7000, 8000},
-			{  -1,   -1, 6000, 2000,   -1,   -1,   -1}};
-
-		// TODO:
-		// Tablesetting
-		// [x] Expose this calculation to Python to simplify cross-checking against mtct-calc-2024-08-19.xlsx
-		// [ ] Add an example tab in mtct-calc-2024-08-19.xlsx that includes ART, check against Delphi (mtct-experimental branch, moz-aim2024-636-modBF.pjnz)
-		// Preprocessing
-		// [ ] If PMTCT entered as %, use PMTCT need (# births to HIV+ women) to convert these to absolute numbers.
-		// [ ] If PMTCT entered as #, check if prenatal regimens exceed need. If so, rescale numbers to match need.
-		// [ ] Calculate HIV incidence in pregnant women.
-		// [ ] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
-		// [ ] Calculate MTCT rates for women on prenatal Option A and Option B, accounting for overflow of mothers with CD4>350
-		// [ ] Calculate MTCT rates for women on postnatal Option A and Option B, accounting for overflow of mothers with CD4>350
-		// Calculation
-		// [ ] Calculate vertical transmission at delivery by regimen
-		// [ ] Calculate number of mothers who have not transmitted at delivery by regimen
-		// [ ] Calculate number of mothers who have not transmitted at k\in{2,4,...,36} months since delivery by regimen
-		// [ ] Use breastfeeding inputs on or off ART to calculate transmissions from mothers who have not yet transmitted
-		// Regimen checklist:
-		// [ ] MTCT_RX_SDNVP			[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_DUAL				[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_OPT_A			[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_OPT_B			[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_ART_BEFORE	[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_ART_DURING	[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_ART_LATE		[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_NONE				[x] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_STOP				[ ] MTCT_PN [ ] MTCT_BF
-		// [ ] MTCT_RX_INCI				[ ] MTCT_PN [ ] MTCT_BF
+			{2000,    0,    0,    0,    0,    0,    0},
+			{  -1,   -1,    0,    0,   -1,   -1,   -1}};
 
 		// n_moms_cd4 counts HIV+ pregnant women who did not receive prophylaxis
 		// by CD4 count. This is used to average transmission rates for women in
 		// the absence of prophylaxis
-		for (b = 0; b < DP::N_AGE_BIRTH; ++b)
-			for (h = 0; h < DP::N_HIV_ADULT; ++h)
+		for (b = 0; b < N_AGE_BIRTH; ++b) {
+			n_moms_art += births[b][H_ART];
+			for (h = 0; h < N_HIV_ADULT; ++h)
 				n_moms_cd4[MTCT_CD4[h]] += births[b][h];
+		}
 
+		for (h = MTCT_CD4_MIN; h <= MTCT_CD4_MAX; ++h)
+			n_moms_hiv += n_moms_cd4[h];
+
+		for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
+			n_moms_arv += n_pmtct[MTCT_PN][r];
+
+		prop_none = 1.0 - n_moms_arv / (n_moms_hiv + n_moms_art + eps); // TODO: something sane if prop_none < 0 or > 1.
+
+		infections[MTCT_PN][MTCT_RX_SDNVP] = n_pmtct[MTCT_PN][MTCT_RX_SDNVP] * dat.mtct_rate(MTCT_PN, MTCT_RX_SDNVP, DP::MTCT_CD4_MIN);
+
+		infections[DP::MTCT_PN][DP::MTCT_RX_NONE] = 0.0;
 		for (h = DP::MTCT_CD4_MIN; h <= DP::MTCT_CD4_MAX; ++h)
-			hiv_perinatal += n_moms_cd4[h] * dat.mtct_rate(MTCT_PN, MTCT_RX_NONE, h);
+			infections[DP::MTCT_PN][DP::MTCT_RX_NONE] += n_moms_cd4[h] * prop_none * dat.mtct_rate(MTCT_PN, MTCT_RX_NONE, h);
 
-		infections[DP::MTCT_PN][DP::MTCT_RX_NONE] = hiv_perinatal;
+		infections[DP::MTCT_PN][DP::MTCT_RX_INCI] = 0.0;
+		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
+			incidence = females[b][H_NEW] / (females[b][H_NEG] + eps);
+			infections[DP::MTCT_PN][DP::MTCT_RX_INCI] += incidence * births[b][H_NEG];
+		}
+		infections[DP::MTCT_PN][DP::MTCT_RX_INCI] *= pregnancy_duration * dat.mtct_rate(MTCT_PN, MTCT_RX_INCI, DP::MTCT_CD4_MIN);
+
+		for (r = DP::MTCT_RX_MIN; r <= DP::MTCT_RX_MAX; ++r)
+			hiv_perinatal += infections[DP::MTCT_PN][r];
 
 		// Insert newly-infected children into the population
 		denom = eps;
