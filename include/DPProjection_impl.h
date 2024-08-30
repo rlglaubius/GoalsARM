@@ -1562,6 +1562,9 @@ namespace DP {
 		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
 	}
 
+	/// @param females input 35x10 array of reproductive age women by age and HIV state. see tally_reproductive_age_females.
+	/// @param exposed_births input 35x10 array of births by maternal age and HIV state, same as females array.
+	/// @param infections output 19x10 array of new child infections timing (perinatal, [0,2), [2,4), ..., [34,36) months and PMTCT regimen (MTCT_RX_SDNVP..MTCT_RX_INCI)
 	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
 		const double eps = std::numeric_limits<double>::epsilon();
 		int b, h, u;
@@ -1576,12 +1579,45 @@ namespace DP {
 			{2000, 3000, 4000, 5000, 6000, 7000, 8000},
 			{  -1,   -1, 6000, 2000,   -1,   -1,   -1}};
 
+		// TODO:
+		// Tablesetting
+		// [x] Expose this calculation to Python to simplify cross-checking against mtct-calc-2024-08-19.xlsx
+		// [ ] Add an example tab in mtct-calc-2024-08-19.xlsx that includes ART, check against Delphi (mtct-experimental branch, moz-aim2024-636-modBF.pjnz)
+		// Preprocessing
+		// [ ] If PMTCT entered as %, use PMTCT need (# births to HIV+ women) to convert these to absolute numbers.
+		// [ ] If PMTCT entered as #, check if prenatal regimens exceed need. If so, rescale numbers to match need.
+		// [ ] Calculate HIV incidence in pregnant women.
+		// [ ] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
+		// [ ] Calculate MTCT rates for women on prenatal Option A and Option B, accounting for overflow of mothers with CD4>350
+		// [ ] Calculate MTCT rates for women on postnatal Option A and Option B, accounting for overflow of mothers with CD4>350
+		// Calculation
+		// [ ] Calculate vertical transmission at delivery by regimen
+		// [ ] Calculate number of mothers who have not transmitted at delivery by regimen
+		// [ ] Calculate number of mothers who have not transmitted at k\in{2,4,...,36} months since delivery by regimen
+		// [ ] Use breastfeeding inputs on or off ART to calculate transmissions from mothers who have not yet transmitted
+		// Regimen checklist:
+		// [ ] MTCT_RX_SDNVP			[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_DUAL				[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_OPT_A			[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_OPT_B			[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_ART_BEFORE	[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_ART_DURING	[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_ART_LATE		[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_NONE				[x] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_STOP				[ ] MTCT_PN [ ] MTCT_BF
+		// [ ] MTCT_RX_INCI				[ ] MTCT_PN [ ] MTCT_BF
+
+		// n_moms_cd4 counts HIV+ pregnant women who did not receive prophylaxis
+		// by CD4 count. This is used to average transmission rates for women in
+		// the absence of prophylaxis
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b)
 			for (h = 0; h < DP::N_HIV_ADULT; ++h)
-				n_moms_cd4[MTCT_CD4[h]] += females[b][h];
+				n_moms_cd4[MTCT_CD4[h]] += births[b][h];
 
 		for (h = DP::MTCT_CD4_MIN; h <= DP::MTCT_CD4_MAX; ++h)
 			hiv_perinatal += n_moms_cd4[h] * dat.mtct_rate(MTCT_PN, MTCT_RX_NONE, h);
+
+		infections[DP::MTCT_PN][DP::MTCT_RX_NONE] = hiv_perinatal;
 
 		// Insert newly-infected children into the population
 		denom = eps;
@@ -1597,14 +1633,15 @@ namespace DP {
 	/// Count the number of reproductive-age females by HIV status, averaged over
 	/// consecutive years.
 	/// @param t year to tally women
-	/// @param females 2d array by age (0..34 for ages 15..49) and 9 HIV states.
+	/// @param females 2d output array by age (0..34 for ages 15..49) and 10 HIV states.
 	/// HIV states 0..6 store HIV+ females not on ART or on ART for less than 6
 	/// months by disease stages HIV_PRIMARY..HIV_000_050. State 7 stores HIV+
 	/// females who have been on ART for at least six months, state 8 stores HIV-
-	/// females.
+	/// females, and state 9 stores newly-infected women. Women included in the
+	/// new infection count also contribute to the tally of women living with HIV.
 	void Projection::tally_reproductive_age_females(const int t, array2d_t& females) {
 		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
-		int b, d, h, u, r;
+		int a, b, d, h, u, r;
 
 		// Calculate numbers of reproductive-age females by age and HIV status. We
 		// sum over years t-1 and year t to account for a half-year exposure to
@@ -1624,11 +1661,15 @@ namespace DP {
 			}
 		}
 
-		for (b = 0; b < females.shape()[0]; ++b)
+		for (b = 0; b < DP::N_AGE_BIRTH; ++b)
 			for (h = H_HIV; h <= H_NEG; ++h)
 				females[b][h] *= 0.5;
 
-		// TODO: tally new infections in females[b][H_NEW]
+		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
+			a = b + DP::AGE_ADULT_MIN;
+			for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
+				females[b][H_NEW] += dat.new_hiv_infections(t, DP::FEMALE, a, r);
+		}
 	}
 
 	double Projection::calc_births(const int t) {

@@ -41,11 +41,6 @@ namespace DP {
 		double calc_births(const int time);
 		double calc_births_hiv_exposed(const int time, const array2d_t& females, array2d_ref_t& exposed_births);
 
-		// females[a][h] 35-by-10, see tally_reproductive_age_females
-		// births[a][h] Births to HIV+ mothers, by same strata as females
-		// infections[TIMING][REGIMEN] by timing and regimen (19-by-20)
-		// TIMING  is delivery or breastfeeding by 2-month period after delivery
-		// REGIMEN is MTCT_RX_SDNVP..MTCT_RX_INCI
 		void calc_child_infections(const int time, const array2d_t& females, const array2d_ref_t& exposed_births, array2d_ref_t& infections);
 		void tally_reproductive_age_females(const int time, array2d_t& females);
 

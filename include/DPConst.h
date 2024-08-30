@@ -215,21 +215,47 @@ namespace DP {
 		MTCT_PN = 0, // perinatal transmission
 		MTCT_BF = 1, // breastfeeding transmission
 
+		// Constants for coarse transmission timing during breastfeeding
 		MTCT_BF_00_06 = 1, // child acquired HIV during breastfeeding in months [0,6) of life
 		MTCT_BF_06_12 = 2, // child acquired HIV during breastfeeding in months [6,12) of life
-		MTCT_BF_12_UP = 3, // child acquired HIV during breastfeeding in months [12,\infty) of life
+		MTCT_BF_12_UP = 3, // child acquired HIV during breastfeeding in months [12,36) of life
+
+		// Constants for detailed transmission timing during breastfeeding
+		MTCT_MOS_00_02 =  1, // [0,2) months after delivery
+		MTCT_MOS_02_04 =  2, // [2,4) months
+		MTCT_MOS_04_06 =  3, // [4,6) months
+		MTCT_MOS_06_08 =  4,
+		MTCT_MOS_08_10 =  5,
+		MTCT_MOS_10_12 =  6,
+		MTCT_MOS_12_14 =  7,
+		MTCT_MOS_14_16 =  8,
+		MTCT_MOS_16_18 =  9,
+		MTCT_MOS_18_20 = 10,
+		MTCT_MOS_20_22 = 11,
+		MTCT_MOS_22_24 = 12,
+		MTCT_MOS_24_26 = 13,
+		MTCT_MOS_26_28 = 14,
+		MTCT_MOS_28_30 = 15,
+		MTCT_MOS_30_32 = 16,
+		MTCT_MOS_32_34 = 17,
+		MTCT_MOS_34_36 = 18, // [34,36) months
 
 		// Bounds for looping over PMTCT regimens during pregnancy and breastfeeding
 		MTCT_MIN = 0,
 		MTCT_MAX = 1,
 
-		// Bounds for looping over timing of pediatric HIV acquisition
+		// Bounds for looping over timing of pediatric HIV acquisition from delivery to breastfeeding cessation, coarse
 		MTCT_TIME_MIN = 0,
-		MTCT_TIME_MAX = 3
+		MTCT_TIME_MAX = 3,
+
+		// Bounds for looping over timing of pediatric HIV acquisition from delivery to breastfeeding cessation, detailed
+		MTCT_MOS_MIN = 0,
+		MTCT_MOS_MAX = 18
 	};
 
 	const int N_MTCT = MTCT_MAX - MTCT_MIN + 1;
 	const int N_MTCT_TIME = MTCT_TIME_MAX - MTCT_TIME_MIN + 1;
+	const int N_MTCT_MOS = MTCT_MOS_MAX - MTCT_MOS_MIN + 1;
 
 	// PMTCT regimen constants
 	enum mtct_rx_t {
