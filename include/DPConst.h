@@ -288,6 +288,19 @@ namespace DP {
 
 	const int N_MTCT_CD4 = MTCT_CD4_MAX - MTCT_CD4_MIN + 1;
 
+	// Constants used to index pregnant women by HIV status
+	enum pregnant_women_t {
+		PREG_HIV = HIV_ADULT_MIN,     // HIV+ pregnant women not on ART (aligns with HIV_PRIMARY)
+		PREG_ART = HIV_ADULT_MAX + 1, // HIV+ pregnant women on ART
+		PREG_NEG = HIV_ADULT_MAX + 2, // HIV- pregnant women
+		PREG_NEW = HIV_ADULT_MAX + 3, // HIV+ pregnant women who newly acquired HIV
+
+		PREG_MIN = 0,
+		PREG_MAX = HIV_ADULT_MAX + 3
+	};
+
+	const int N_PREG = PREG_MAX - PREG_MIN + 1;
+
 	// +=+ STI symptomatic status constants +====================================+
 	enum sti_t {
 		STI_NONE = 0, // STI symptoms present in neither partner

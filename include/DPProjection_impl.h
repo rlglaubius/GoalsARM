@@ -1534,8 +1534,6 @@ namespace DP {
 	}
 
 	double Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_ref_t& births) {
-		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
-
 		int b, h;
 		double frr_hiv[N_HIV_ADULT], frr_art, asfr, pop, hiv;
 
@@ -1548,17 +1546,17 @@ namespace DP {
 			// Calculate the total number of women. We do not include newly-infected women
 			// because they are assumed to be included in the population living with HIV.
 			pop = 0;
-			for (h = H_HIV; h <= H_NEG; ++h)
+			for (h = PREG_HIV; h <= PREG_NEG; ++h)
 				pop += females[b][h];
 
-			hiv = frr_art * females[b][H_ART];
+			hiv = frr_art * females[b][PREG_ART];
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 				hiv += frr_hiv[h] * females[b][h];
 			
-			births[b][H_ART] = asfr * pop * frr_art * females[b][H_ART] / (females[b][H_NEG] + hiv);
+			births[b][PREG_ART] = asfr * pop * frr_art * females[b][PREG_ART] / (females[b][PREG_NEG] + hiv);
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
-				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][H_NEG] + hiv);
-			births[b][H_NEG] = asfr * pop * females[b][H_NEG] / (females[b][H_NEG] + hiv);
+				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][PREG_NEG] + hiv);
+			births[b][PREG_NEG] = asfr * pop * females[b][PREG_NEG] / (females[b][PREG_NEG] + hiv);
 		}
 		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
 	}
@@ -1595,7 +1593,6 @@ namespace DP {
 	// [ ] MTCT_RX_STOP				[ ] MTCT_PN [ ] MTCT_BF
 	// [ ] MTCT_RX_INCI				[x] MTCT_PN [ ] MTCT_BF (this uses age-specific incidence and age-specific births where AIM uses age-averaged incidence and total births to HIV- women)
 	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
-		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
 		const double pregnancy_duration(9.0 / 12.0);
 
 		const double eps = std::numeric_limits<double>::epsilon();
@@ -1618,7 +1615,7 @@ namespace DP {
 		// by CD4 count. This is used to average transmission rates for women in
 		// the absence of prophylaxis
 		for (b = 0; b < N_AGE_BIRTH; ++b) {
-			n_moms_art += births[b][H_ART];
+			n_moms_art += births[b][PREG_ART];
 			for (h = 0; h < N_HIV_ADULT; ++h)
 				n_moms_cd4[MTCT_CD4[h]] += births[b][h];
 		}
@@ -1639,8 +1636,8 @@ namespace DP {
 
 		infections[DP::MTCT_PN][DP::MTCT_RX_INCI] = 0.0;
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
-			incidence = females[b][H_NEW] / (females[b][H_NEG] + eps);
-			infections[DP::MTCT_PN][DP::MTCT_RX_INCI] += incidence * births[b][H_NEG];
+			incidence = females[b][PREG_NEW] / (females[b][PREG_NEG] + eps);
+			infections[DP::MTCT_PN][DP::MTCT_RX_INCI] += incidence * births[b][PREG_NEG];
 		}
 		infections[DP::MTCT_PN][DP::MTCT_RX_INCI] *= pregnancy_duration * dat.mtct_rate(MTCT_PN, MTCT_RX_INCI, DP::MTCT_CD4_MIN);
 
@@ -1668,7 +1665,6 @@ namespace DP {
 	/// females, and state 9 stores newly-infected women. Women included in the
 	/// new infection count also contribute to the tally of women living with HIV.
 	void Projection::tally_reproductive_age_females(const int t, array2d_t& females) {
-		const int H_HIV(DP::HIV_ADULT_MIN), H_ART(DP::HIV_ADULT_MAX+1), H_NEG(DP::HIV_ADULT_MAX+2), H_NEW(DP::HIV_ADULT_MAX+3);
 		int a, b, d, h, u, r;
 
 		// Calculate numbers of reproductive-age females by age and HIV status. We
@@ -1678,25 +1674,25 @@ namespace DP {
 		for (u = 0; u < 2; ++u) {
 			for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 				for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r) {
-					females[b][H_NEG] += pop.adult_neg(t-u, DP::FEMALE, b, r);
+					females[b][PREG_NEG] += pop.adult_neg(t-u, DP::FEMALE, b, r);
 					for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h) {
 						for (d = DP::DTX_UNAWARE; d <= DP::DTX_ART1; ++d)
 							females[b][h] += pop.adult_hiv(t-u, DP::FEMALE, b, r, h, d);
 						for (d = DP::DTX_ART2; d <= DP::DTX_MAX; ++d)
-							females[b][H_ART] += pop.adult_hiv(t-u, DP::FEMALE, b, r, h, d);
+							females[b][PREG_ART] += pop.adult_hiv(t-u, DP::FEMALE, b, r, h, d);
 					}
 				}
 			}
 		}
 
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b)
-			for (h = H_HIV; h <= H_NEG; ++h)
+			for (h = PREG_HIV; h <= PREG_NEG; ++h)
 				females[b][h] *= 0.5;
 
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 			a = b + DP::AGE_ADULT_MIN;
 			for (r = DP::POP_MIN; r <= DP::POP_MAX; ++r)
-				females[b][H_NEW] += dat.new_hiv_infections(t, DP::FEMALE, a, r);
+				females[b][PREG_NEW] += dat.new_hiv_infections(t, DP::FEMALE, a, r);
 		}
 	}
 
