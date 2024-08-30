@@ -1651,7 +1651,7 @@ namespace DP {
 
 		for (u = 0; u < DP::N_SEX_MC; ++u) {
 			share = pop.child_neg(t, u, 0) / denom;
-			dat.new_hiv_infections(t, hiv_perinatal * share, 0, DP::POP_NOSEX, hiv_perinatal);
+			dat.new_hiv_infections(t, u, 0, DP::POP_NOSEX, hiv_perinatal * share);
 		}
 	}
 

@@ -61,8 +61,11 @@ namespace DP {
 
 	// General-purpose typedefs
 	typedef boost::multi_array<double, 2> array2d_t;
+	typedef boost::multi_array<double, 3> array3d_t;
+	typedef boost::multi_array<double, 4> array4d_t;
 
 	typedef boost::multi_array_ref<double, 2> array2d_ref_t;
+	typedef boost::multi_array_ref<double, 3> array3d_ref_t;
 	typedef boost::multi_array_ref<double, 4> array4d_ref_t;
 
 } // END namespace DP

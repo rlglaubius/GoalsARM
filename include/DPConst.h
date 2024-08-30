@@ -300,6 +300,17 @@ namespace DP {
 	};
 
 	const int N_PREG = PREG_MAX - PREG_MIN + 1;
+	
+	// Constants for indexing breastfeeding inputs by ARV status
+	enum breastfeeding_arvs_t {
+		BF_OFF_ARV = 0, // women not receiving ARVs
+		BF_ON_ARV  = 1, // women receiving ARVs
+
+		BF_ARV_MIN = 0,
+		BF_ARV_MAX = 1
+	};
+
+	const int N_BF_ARV = BF_ARV_MAX - BF_ARV_MIN + 1;
 
 	// +=+ STI symptomatic status constants +====================================+
 	enum sti_t {

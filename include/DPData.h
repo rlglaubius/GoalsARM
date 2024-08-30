@@ -137,6 +137,10 @@ namespace DP {
 		inline double mtct_rate(const int mtct_timing, const int mtct_regimen, const int mtct_cd4) const {return _mtct_rate[mtct_timing][mtct_regimen][mtct_cd4];}
 		inline void mtct_rate(const int mtct_timing, const int mtct_regimen, const int mtct_cd4, const double value) {_mtct_rate[mtct_timing][mtct_regimen][mtct_cd4] = value;}
 
+		// age should be of type mtct_t. We subtract 1 so that MTCT_MOS_00_02 is index 0
+		inline double breastfeeding(const int t, const int arv, const int age) const {return _breastfeeding[t][arv][age-1];}
+		inline void breastfeeding(const int t, const int arv, const int age, const double value) {_breastfeeding[t][arv][age-1] = value;}
+
 		inline double births(const int t, const int s) const {return (*_births)[t][s];}
 		inline void births(const int t, const int s, const popsize_t value) {(*_births)[t][s] = value;}
 
@@ -295,6 +299,7 @@ namespace DP {
 
 		// Model inputs - MTCT parameters
 		double _mtct_rate[DP::N_MTCT][DP::N_MTCT_RX][DP::N_MTCT_CD4]; // MTCT rates by perinatal/breastfeeding timing, PMTCT regimen, and maternal CD4 count
+		array3d_t _breastfeeding; // breastfeeding inputs by year, ARV status, and time since delivery
 
 		bool _direct_incidence; // toggle for direct vs. mechanistic HIV incidence calculation
 
@@ -393,6 +398,8 @@ namespace DP {
 			_migration(year_sex_age_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_AGE])),
 
 			_uptake_male_circumcision(year_age_t(boost::extents[year_final - year_start + 1][DP::N_AGE])),
+
+			_breastfeeding(array3d_t(boost::extents[year_final - year_start + 1][DP::N_BF_ARV][DP::N_MTCT_MOS-1])),
 	
 			_incidence(time_series_t(year_final - year_start + 1)),
 			_irr_sex(time_series_t(year_final - year_start + 1)),
