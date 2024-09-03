@@ -1598,9 +1598,10 @@ namespace DP {
 
 		const double eps = std::numeric_limits<double>::epsilon();
 		int b, h, m, r, u;
-		double hiv_perinatal(0.0), incidence, share, denom, prop_none, discount;
-		double n_moms_cd4[N_MTCT_CD4] = {0.0, 0.0, 0.0}, n_moms_art(0.0), n_moms_hiv(0.0), n_moms_arv(0.0);
-		double n_stop, p_stop;
+		double hiv_perinatal(0.0), share, denom, prop_none, discount;
+		double n_moms_cd4[N_MTCT_CD4] = {0.0, 0.0, 0.0};
+		double n_moms_art(0.0), n_moms_arv(0.0), n_moms_hiv(0.0), n_moms_neg(0.0);
+		double incidence, n_stop, p_stop;
 		double mtct_none_perinatal, mtct_none_postnatal;
 		double mothers[N_MTCT_MOS][N_MTCT_RX];
 
@@ -1626,6 +1627,7 @@ namespace DP {
 		// the absence of prophylaxis
 		for (b = 0; b < N_AGE_BIRTH; ++b) {
 			n_moms_art += births[b][PREG_ART];
+			n_moms_neg += births[b][PREG_NEG];
 			for (h = 0; h < N_HIV_ADULT; ++h)
 				n_moms_cd4[MTCT_CD4[h]] += births[b][h];
 		}
@@ -1662,12 +1664,19 @@ namespace DP {
 		mothers[MTCT_PN][MTCT_RX_ART_BEFORE] *= (1.0 - prop_stop_art_before_perinatal);
 		mothers[MTCT_PN][MTCT_RX_ART_DURING] *= (1.0 - prop_stop_art_during_perinatal);
 	
+		// Calculate the number of women who acquire HIV during pregnancy. This differs
+		// slighly from AIM as of 2024-09-03. AIM calculates an average incidence rate
+		// weighted by age-specific fertility, then applies it to 15-49 HIV-negative
+		// pregnant women. Here we use age-specific incidence to calculate new infections by age.
 		mothers[MTCT_PN][MTCT_RX_INCI] = 0.0;
 		for (b = 0; b < N_AGE_BIRTH; ++b) {
 			incidence = females[b][PREG_NEW] / (females[b][PREG_NEG] + eps);
 			mothers[MTCT_PN][MTCT_RX_INCI] += incidence * births[b][PREG_NEG];
 		}
-		mothers[MTCT_PN][MTCT_RX_INCI] *= pregnancy_duration; // adjust for 9 months of exposure to annual incidence
+		incidence = mothers[MTCT_PN][MTCT_RX_INCI] / (n_moms_neg + eps); // calculate average annual HIV incidence in pregnant women
+		mothers[MTCT_PN][MTCT_RX_INCI] *= pregnancy_duration; // adjust number of maternal infections during pregnancy for 9 months of HIV exposure
+
+		incidence = 1.0 - std::exp(-incidence / 6.0); // convert from an annual rate to a probability per two months
 
 		// Perinatal transmission
 		infections[MTCT_PN][MTCT_RX_SDNVP     ] = mothers[MTCT_PN][MTCT_RX_SDNVP     ] * dat.mtct_rate(MTCT_PN, MTCT_RX_SDNVP,      DP::MTCT_CD4_MIN);
@@ -1692,15 +1701,19 @@ namespace DP {
 			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
 				n_stop += mothers[m-1][r] * p_stop;
 
+			n_moms_neg -= mothers[m-1][MTCT_RX_INCI]; // subtract women who acquired HIV from those who remain at risk
+
 			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
 				mothers[m][r] = mothers[m-1][r] * (1.0 - p_stop) - infections[m-1][r];
-			mothers[m][MTCT_RX_NONE ] = mothers[m-1][MTCT_RX_NONE ] - infections[m-1][MTCT_RX_NONE ];
-			mothers[m][MTCT_RX_STOP ] = mothers[m-1][MTCT_RX_STOP ] - infections[m-1][MTCT_RX_STOP ] + n_stop;
+			mothers[m][MTCT_RX_NONE] = mothers[m-1][MTCT_RX_NONE] - infections[m-1][MTCT_RX_NONE];
+			mothers[m][MTCT_RX_STOP] = mothers[m-1][MTCT_RX_STOP] - infections[m-1][MTCT_RX_STOP] + n_stop;
+			mothers[m][MTCT_RX_INCI] = n_moms_neg * incidence;
 
 			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
 				infections[m][r] = mothers[m][r] * discount * dat.breastfeeding(t, BF_ON_ARV, m) * 2.0 * dat.mtct_rate(MTCT_BF, r, DP::MTCT_CD4_MIN);
-			infections[m][MTCT_RX_NONE ] = mothers[m][MTCT_RX_NONE ] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
-			infections[m][MTCT_RX_STOP ] = mothers[m][MTCT_RX_STOP ] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
+			infections[m][MTCT_RX_NONE] = mothers[m][MTCT_RX_NONE] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
+			infections[m][MTCT_RX_STOP] = mothers[m][MTCT_RX_STOP] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
+			infections[m][MTCT_RX_INCI] = mothers[m][MTCT_RX_INCI] * dat.breastfeeding(t, BF_OFF_ARV, m) * dat.mtct_rate(MTCT_BF, MTCT_RX_INCI, DP::MTCT_CD4_MIN);
 		}
 
 		for (r = MTCT_RX_MIN; r <= MTCT_RX_MAX; ++r)
