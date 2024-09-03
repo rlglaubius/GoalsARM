@@ -1572,8 +1572,8 @@ namespace DP {
 	// Preprocessing
 	// [ ] If PMTCT entered as %, use PMTCT need (# births to HIV+ women) to convert these to absolute numbers.
 	// [ ] If PMTCT entered as #, check if prenatal regimens exceed need. If so, rescale numbers to match need.
-	// [ ] Calculate HIV incidence in pregnant women.
-	// [ ] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
+	// [x] Calculate HIV incidence in pregnant women.
+	// [x] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
 	// [ ] Calculate MTCT rates for women on prenatal Option A and Option B, accounting for overflow of mothers with CD4>350
 	// [ ] Calculate MTCT rates for women on postnatal Option A and Option B, accounting for overflow of mothers with CD4>350
 	// Calculation
@@ -1581,16 +1581,17 @@ namespace DP {
 	// [ ] Calculate number of mothers who have not transmitted at delivery by regimen
 	// [ ] Calculate number of mothers who have not transmitted at k\in{2,4,...,36} months since delivery by regimen
 	// [ ] Use breastfeeding inputs on or off ART to calculate transmissions from mothers who have not yet transmitted
+	// [ ] Remove mothers[m][r] initialization loop if feasible
 	// Regimen checklist:
 	// [x] MTCT_RX_SDNVP			[x] MTCT_PN [x] MTCT_BF
-	// [ ] MTCT_RX_DUAL				[ ] MTCT_PN [ ] MTCT_BF
+	// [x] MTCT_RX_DUAL				[x] MTCT_PN [x] MTCT_BF
 	// [ ] MTCT_RX_OPT_A			[ ] MTCT_PN [ ] MTCT_BF
 	// [ ] MTCT_RX_OPT_B			[ ] MTCT_PN [ ] MTCT_BF
-	// [ ] MTCT_RX_ART_BEFORE	[ ] MTCT_PN [ ] MTCT_BF
-	// [ ] MTCT_RX_ART_DURING	[ ] MTCT_PN [ ] MTCT_BF
-	// [ ] MTCT_RX_ART_LATE		[ ] MTCT_PN [ ] MTCT_BF
+	// [x] MTCT_RX_ART_BEFORE	[x] MTCT_PN [x] MTCT_BF
+	// [x] MTCT_RX_ART_DURING	[x] MTCT_PN [x] MTCT_BF
+	// [x] MTCT_RX_ART_LATE		[x] MTCT_PN [x] MTCT_BF
 	// [x] MTCT_RX_NONE				[x] MTCT_PN [x] MTCT_BF
-	// [ ] MTCT_RX_STOP				[ ] MTCT_PN [ ] MTCT_BF
+	// [x] MTCT_RX_STOP				[x] MTCT_PN [x] MTCT_BF
 	// [ ] MTCT_RX_INCI				[x] MTCT_PN [ ] MTCT_BF (this uses age-specific incidence and age-specific births where AIM uses age-averaged incidence and total births to HIV- women)
 	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
 		const double pregnancy_duration(9.0 / 12.0);
@@ -1603,13 +1604,16 @@ namespace DP {
 		double mtct_none_perinatal, mtct_none_postnatal;
 		double mothers[N_MTCT_MOS][N_MTCT_RX];
 
-		// Rob Glaubius 2024-08-23: n_mtct and prop_stop_arv_postnatal are hard-coded
+		// Rob Glaubius 2024-08-23: n_mtct and interruption inputs below are hard-coded
 		// for debugging while I seek resolution on some questions about how postnatal
 		// sdNVP, dual ARV, Option A and Option should be handled, which may change how
 		// we organize inputs and define constants for these regimens.
 		const double n_pmtct[N_MTCT][MTCT_RX_ART_LATE - MTCT_RX_SDNVP + 1] = {
-			{2000,    0,    0,    0,    0,    0,    0},
+			{2000, 3000,    0,    0, 6000, 7000, 8000},
 			{  -1,   -1,    0,    0,   -1,   -1,   -1}};
+
+		const double prop_stop_art_before_perinatal(1.0 - 0.8);
+		const double prop_stop_art_during_perinatal(1.0 - 0.9);
 
 		const double prop_stop_arv_postnatal[N_MTCT_MOS] = {
 			-1.0, // perinatal; unused
@@ -1634,22 +1638,6 @@ namespace DP {
 
 		prop_none = 1.0 - n_moms_arv / (n_moms_hiv + n_moms_art + eps); // TODO: something sane if prop_none < 0 or > 1.
 
-		// TODO: we should be able to get rid of this initialization
-		// loop once all prophylaxis regimens are implemented 
-		for (m = MTCT_MOS_MIN; m <= MTCT_MOS_MAX; ++m)
-			for (r = MTCT_RX_MIN; r <= MTCT_RX_MAX; ++r)
-				mothers[m][r] = 0.0;
-
-		mothers[MTCT_PN][MTCT_RX_SDNVP] = n_pmtct[MTCT_PN][MTCT_RX_SDNVP];
-		mothers[MTCT_PN][MTCT_RX_NONE] = n_moms_hiv * prop_none;
-		
-		mothers[MTCT_PN][MTCT_RX_INCI] = 0.0;
-		for (b = 0; b < N_AGE_BIRTH; ++b) {
-			incidence = females[b][PREG_NEW] / (females[b][PREG_NEG] + eps);
-			mothers[MTCT_PN][MTCT_RX_INCI] += incidence * births[b][PREG_NEG];
-		}
-		mothers[MTCT_PN][MTCT_RX_INCI] *= pregnancy_duration; // adjust for 9 months of exposure to annual incidence
-
 		// Calculate average vertical transmission rates for women not on ARVs
 		mtct_none_perinatal = 0.0;
 		mtct_none_postnatal = 0.0;
@@ -1660,11 +1648,36 @@ namespace DP {
 		mtct_none_perinatal /= (n_moms_hiv + eps);
 		mtct_none_postnatal /= (n_moms_hiv + eps);
 
+		// TODO: we should be able to get rid of this initialization
+		// loop once all prophylaxis regimens are implemented 
+		for (m = MTCT_MOS_MIN; m <= MTCT_MOS_MAX; ++m)
+			for (r = MTCT_RX_MIN; r <= MTCT_RX_MAX; ++r)
+				mothers[m][r] = 0.0;
+
+		for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
+			mothers[MTCT_PN][r] = n_pmtct[MTCT_PN][r];
+		mothers[MTCT_PN][MTCT_RX_STOP ] = mothers[MTCT_PN][MTCT_RX_ART_BEFORE] * prop_stop_art_before_perinatal
+			                              + mothers[MTCT_PN][MTCT_RX_ART_DURING] * prop_stop_art_during_perinatal;
+		mothers[MTCT_PN][MTCT_RX_NONE ] = n_moms_hiv * prop_none;
+		mothers[MTCT_PN][MTCT_RX_ART_BEFORE] *= (1.0 - prop_stop_art_before_perinatal);
+		mothers[MTCT_PN][MTCT_RX_ART_DURING] *= (1.0 - prop_stop_art_during_perinatal);
+	
+		mothers[MTCT_PN][MTCT_RX_INCI] = 0.0;
+		for (b = 0; b < N_AGE_BIRTH; ++b) {
+			incidence = females[b][PREG_NEW] / (females[b][PREG_NEG] + eps);
+			mothers[MTCT_PN][MTCT_RX_INCI] += incidence * births[b][PREG_NEG];
+		}
+		mothers[MTCT_PN][MTCT_RX_INCI] *= pregnancy_duration; // adjust for 9 months of exposure to annual incidence
+
 		// Perinatal transmission
-		infections[MTCT_PN][MTCT_RX_SDNVP] = mothers[MTCT_PN][MTCT_RX_SDNVP] * dat.mtct_rate(MTCT_PN, MTCT_RX_SDNVP, DP::MTCT_CD4_MIN);
-		infections[MTCT_PN][MTCT_RX_NONE ] = mothers[MTCT_PN][MTCT_RX_NONE ] * mtct_none_perinatal;
-		infections[MTCT_PN][MTCT_RX_STOP ] = mothers[MTCT_PN][MTCT_RX_STOP ] * mtct_none_perinatal;
-		infections[MTCT_PN][MTCT_RX_INCI ] = mothers[MTCT_PN][MTCT_RX_INCI ] * dat.mtct_rate(MTCT_PN, MTCT_RX_INCI, DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_SDNVP     ] = mothers[MTCT_PN][MTCT_RX_SDNVP     ] * dat.mtct_rate(MTCT_PN, MTCT_RX_SDNVP,      DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_DUAL      ] = mothers[MTCT_PN][MTCT_RX_DUAL      ] * dat.mtct_rate(MTCT_PN, MTCT_RX_DUAL,       DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_ART_BEFORE] = mothers[MTCT_PN][MTCT_RX_ART_BEFORE] * dat.mtct_rate(MTCT_PN, MTCT_RX_ART_BEFORE, DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_ART_DURING] = mothers[MTCT_PN][MTCT_RX_ART_DURING] * dat.mtct_rate(MTCT_PN, MTCT_RX_ART_DURING, DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_ART_LATE  ] = mothers[MTCT_PN][MTCT_RX_ART_LATE  ] * dat.mtct_rate(MTCT_PN, MTCT_RX_ART_LATE,   DP::MTCT_CD4_MIN);
+		infections[MTCT_PN][MTCT_RX_NONE      ] = mothers[MTCT_PN][MTCT_RX_NONE      ] * mtct_none_perinatal;
+		infections[MTCT_PN][MTCT_RX_STOP      ] = mothers[MTCT_PN][MTCT_RX_STOP      ] * mtct_none_perinatal;
+		infections[MTCT_PN][MTCT_RX_INCI      ] = mothers[MTCT_PN][MTCT_RX_INCI      ] * dat.mtct_rate(MTCT_PN, MTCT_RX_INCI, DP::MTCT_CD4_MIN);
 
 		// Postnatal transmission
 		// Note that we double ARV interruption and transmission rates beceause these are specified monthly, but we loop
@@ -1678,12 +1691,14 @@ namespace DP {
 			p_stop = 2.0 * prop_stop_arv_postnatal[m];
 			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
 				n_stop += mothers[m-1][r] * p_stop;
-			
-			mothers[m][MTCT_RX_SDNVP] = mothers[m-1][MTCT_RX_SDNVP] * (1.0 - p_stop) - infections[m-1][MTCT_RX_SDNVP];
+
+			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
+				mothers[m][r] = mothers[m-1][r] * (1.0 - p_stop) - infections[m-1][r];
 			mothers[m][MTCT_RX_NONE ] = mothers[m-1][MTCT_RX_NONE ] - infections[m-1][MTCT_RX_NONE ];
 			mothers[m][MTCT_RX_STOP ] = mothers[m-1][MTCT_RX_STOP ] - infections[m-1][MTCT_RX_STOP ] + n_stop;
 
-			infections[m][MTCT_RX_SDNVP] = mothers[m][MTCT_RX_SDNVP] * discount * dat.breastfeeding(t, BF_ON_ARV,  m) * 2.0 * dat.mtct_rate(MTCT_BF, MTCT_RX_SDNVP, DP::MTCT_CD4_MIN);
+			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
+				infections[m][r] = mothers[m][r] * discount * dat.breastfeeding(t, BF_ON_ARV, m) * 2.0 * dat.mtct_rate(MTCT_BF, r, DP::MTCT_CD4_MIN);
 			infections[m][MTCT_RX_NONE ] = mothers[m][MTCT_RX_NONE ] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
 			infections[m][MTCT_RX_STOP ] = mothers[m][MTCT_RX_STOP ] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
 		}
