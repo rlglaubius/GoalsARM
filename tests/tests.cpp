@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <iostream>
-#include <GoalsARM.H>
+#include <GoalsARM.h>
 
 enum result_t {TEST_SUCCESS = 0, TEST_FAILURE = 1};
 
