@@ -41,8 +41,8 @@ Should work with CMake out of the box.
 
 #### VSCode
 
-* Install C/C++ extension for VSCode
-* Install CMake Tools extension for VSCode
+* Install C/C++ extension from Microsoft
+* Install CMake Tools extension from Microsoft
 
 1. Select a kit, this is a toolchain for building your project. Using Ctrl+Shift+P and running CMake: Select a Kit.
 2. Select a variant. This will make several variants avaialble to you, `Debug`, `Release`, `MinRelSize`, `RelWithDebInfo`. `Debug` disables optimisations and includes debug info. You'll probably only want to ever build with `Debug` in this repo. So pick this, using Ctrl+Shift+P and running `CMake: Select Variant`. You should see this compiling your code and creating a `build` directory with generated CMake files and compiled code.
