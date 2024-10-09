@@ -28,7 +28,6 @@ if(NOT Boost_FOUND)
     )
 
     FetchContent_MakeAvailable(boost_math boost_multi_array)
-    target_include_directories(GoalsARM INTERFACE ${boost_math_SOURCE_DIR}/include ${boost_multi_array_SOURCE_DIR}/include)
 else()
     message(STATUS "Boost found at ${Boost_INCLUDE_DIRS}")
     target_include_directories(GoalsARM INTERFACE ${Boost_INCLUDE_DIRS})
