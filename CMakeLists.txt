@@ -8,32 +8,15 @@ add_library(GoalsARM INTERFACE)
 message(CHECK_START "Locating Boost")
 list(APPEND CMAKE_MESSAGE_INDENT "  ")
 
-find_package(Boost 1.82 CONFIG QUIET)
-if(NOT Boost_FOUND)
-    message(STATUS "Boost not found, fetching Boost dynamically...")
-
-    include(FetchContent)
-    FetchContent_Declare(
-            boost_math
-            GIT_REPOSITORY https://github.com/boostorg/math.git
-            GIT_TAG boost-1.82.0
-            GIT_SHALLOW TRUE
-    )
-
-    FetchContent_Declare(
-            boost_multi_array
-            GIT_REPOSITORY https://github.com/boostorg/multi_array.git
-            GIT_TAG boost-1.82.0
-            GIT_SHALLOW TRUE
-    )
-
-    FetchContent_MakeAvailable(boost_math boost_multi_array)
-    target_include_directories(GoalsARM INTERFACE ${boost_math_SOURCE_DIR}/include ${boost_multi_array_SOURCE_DIR}/include)
-else()
-    message(STATUS "Boost found at ${Boost_INCLUDE_DIRS}")
-    target_include_directories(GoalsARM INTERFACE ${Boost_INCLUDE_DIRS})
+if(POLICY CMP0167)
+   # This policy removes FindBoost module
+   # in favour of using BoostConfig.cmake files
+   # but it cannot locate these as reliably, so let's
+   # just use the old policy for now.
+   cmake_policy(SET CMP0167 OLD)
 endif()
-list(POP_BACK CMAKE_MESSAGE_INDENT)
+find_package(Boost 1.82 REQUIRED)
+target_include_directories(GoalsARM INTERFACE ${Boost_INCLUDE_DIRS})
 
 # Add library
 target_include_directories(GoalsARM
