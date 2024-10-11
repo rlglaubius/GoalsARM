@@ -45,7 +45,8 @@ Should work with CMake out of the box.
 * Install C/C++ extension from Microsoft
 * Install CMake Tools extension from Microsoft
 
-1. Select a kit, this is a toolchain for building your project. Using Ctrl+Shift+P and running CMake: Select a Kit.
-2. Select a variant. This will make several variants avaialble to you, `Debug`, `Release`, `MinRelSize`, `RelWithDebInfo`. `Debug` disables optimisations and includes debug info. You'll probably only want to ever build with `Debug` in this repo. So pick this, using Ctrl+Shift+P and running `CMake: Select Variant`. You should see this compiling your code and creating a `build` directory with generated CMake files and compiled code.
-3. You should now be able to build and debug by using the buttons "Build" and "Debug" buttons in the bottom of VSCode. Note that the options shown in the Top right won't work as these are trying to use vscode in build
-4. You should be able to run individual tests from the testing tab, but to debug from the testing tab you'll need to add a [launch.json](https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md#debug-using-a-launchjson-file).
+1. Open the project in VSCode, you should be prompted to "Select a Kit for GoalsARM". A kit is the toolchain for compiling your project. You can select a specific kit or "unspecified" to let CMake decide for you.
+1. (Optionally) Select a variant. VSCode will make several build variants avaialble to you, `Debug`, `Release`, `MinRelSize`, `RelWithDebInfo`. `Debug` disables optimisations and includes debug info and should be selected by default. You can select one of the others using Ctrl+Shift+P and running `CMake: Select Variant`. 
+1. You should see VSCode compiling your code automatically. It will create a `build` directory with generated files and compiled code.
+1. You should now be able to build and debug by using the "Build" and "Debug" buttons in the bottom bar of VSCode. Note that any compilation buttons shown in the top right won't work as these are not being compiled using the CMake configuration.
+1. You should be able to run individual tests from the testing tab, but to debug from the testing tab you'll need to add a [launch.json](https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md#debug-using-a-launchjson-file).

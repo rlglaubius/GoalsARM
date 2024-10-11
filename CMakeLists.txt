@@ -5,9 +5,6 @@ project(GoalsARM VERSION 1.0.0
                  LANGUAGES CXX)
 add_library(GoalsARM INTERFACE)
 
-message(CHECK_START "Locating Boost")
-list(APPEND CMAKE_MESSAGE_INDENT "  ")
-
 if(POLICY CMP0167)
    # This policy removes FindBoost module
    # in favour of using BoostConfig.cmake files
