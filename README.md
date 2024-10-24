@@ -5,8 +5,8 @@ HIV transmission dynamic model
 
 ### Prerequisites
 
-* [CMake](https://cmake.org/) (>3.15) for packaging.
-* [Boost](https://www.boost.org/users/download/) installed. The easiest way I find to do this, on windows, is to install one of the prebuilt binaries linked from the download page.
+* [CMake](https://cmake.org/) (>=3.15) for packaging.
+* [Boost](https://www.boost.org/users/download/) (>=1.82, <=1.85>) installed. The easiest way I find to do this, on windows, is to install one of the prebuilt binaries linked from the download page.
 * [Catch2](https://github.com/catchorg/Catch2) (optional) for testing. It will be fetched by CMake if you do not have it installed locally.
 
 ### Build with CMake
