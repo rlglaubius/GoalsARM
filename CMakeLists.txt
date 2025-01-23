@@ -26,7 +26,7 @@ target_compile_features(GoalsARM INTERFACE cxx_std_20)
 # Enable testing if this project is built standalone (not included as a subproject)
 include(CTest)
 if(BUILD_TESTING)
-    add_subdirectory(tests EXCLUDE_FROM_ALL)
+    add_subdirectory(tests)
 endif()
 
 # Install the library and export CMake targets

@@ -16,6 +16,7 @@ if(NOT Catch2_FOUND)
 
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH ${Catch2_SOURCE_DIR}/extras)
+    message(STATUS "Catch2 fetched succesfully")
 else()
     message(STATUS "Catch2 found at ${Catch2_INCLUDE_DIRS}")
 endif()
