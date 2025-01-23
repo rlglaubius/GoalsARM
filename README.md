@@ -29,7 +29,7 @@ Note you only need to re-run the configuration step if you modify CMakeLists.txt
 
 To exclude compiling test code add
 ```console
-cmake -S . -B build -DBUILD_TESTING=off --fresh
+cmake -S . -B build -DGOALS_BUILD_TESTING=off --fresh
 cmake --build build
 ```
 

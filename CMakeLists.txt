@@ -24,8 +24,8 @@ target_include_directories(GoalsARM
 target_compile_features(GoalsARM INTERFACE cxx_std_20)
 
 # Enable testing if this project is built standalone (not included as a subproject)
-include(CTest)
-if(BUILD_TESTING)
+option(GOALS_BUILD_TESTING "Enable building tests." ON)
+if(GOALS_BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
