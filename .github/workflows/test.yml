@@ -15,22 +15,26 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
+      - name: Install boost
+        uses: MarkusJx/install-boost@v2
+        id: install-boost
+        with:
+          boost_version: 1.85.0
 
       - name: Configure
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+        shell: pwsh
+        run: cmake "--preset=ci-$("${{ matrix.os }}".split("-")[0])"
 
       - name: Build
-        run: |
-          cmake --build build --config Debug
+        run: cmake --build build --config Release -j 2
+
+      - name: Install
+        run: cmake --install build --config Release --prefix prefix
 
       - name: Test
-        run: |
-          cd build
-          ctest -C Debug --output-on-failure --verbose
+        working-directory: build
+        run: ctest --output-on-failure --no-tests=error -C Release -j 2
