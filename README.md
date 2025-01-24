@@ -42,12 +42,12 @@ Note also, when building with testing turned off nothing is going to be compiled
 ```console
 cmake -S . -B build
 cmake --build build
-ctest --test-dir build/tests
+ctest --test-dir build
 ```
 
-### IDE integration
+To add a new test, you can extend the existing `tests/tests.cpp` or any new file within the `tests` directory with the `.cpp` extension will be picked up automatically.
 
-It is recommended you setup a debug build target within your IDE. Ensure that any build target is added to the .gitignore.
+### IDE integration
 
 #### CLion
 

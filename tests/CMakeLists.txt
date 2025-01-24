@@ -22,10 +22,20 @@ else()
 endif()
 list(POP_BACK CMAKE_MESSAGE_INDENT)
 
-# These tests can use the Catch2-provided main
-add_executable(tests tests.cpp)
-target_link_libraries(tests PRIVATE GoalsARM Catch2::Catch2WithMain)
+file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+
+foreach(TEST_FILE ${TEST_SOURCES})
+    get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
+    file(RELATIVE_PATH FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR} ${TEST_FILE})
+    add_executable(${TEST_NAME} ${FILE_NAME})
+    target_link_libraries(${TEST_NAME} PRIVATE GoalsARM Catch2::Catch2WithMain)
+endforeach()
 
 include(CTest)
 include(Catch)
-catch_discover_tests(tests)
+## Note it is important these are as a separate block for them to
+## be built correctly
+foreach(TEST_FILE ${TEST_SOURCES})
+    get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
+    catch_discover_tests(${TEST_NAME})
+endforeach()
