@@ -14,9 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             toolset: gcc
             platform_version: 22.04
             arch: x86
@@ -44,6 +44,8 @@ jobs:
       - name: Configure
         shell: pwsh
         run: cmake "--preset=ci-$("${{ matrix.os }}".split("-")[0])"
+        env:
+          BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 
       - name: Build
         run: cmake --build build --config Release -j 2
