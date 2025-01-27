@@ -20,14 +20,17 @@ jobs:
             toolset: gcc
             platform_version: 22.04
             arch: x86
+            boost_install_dir: /tmp/boost
           - os: macos-latest
             toolset: clang
             platform_version: 14
             arch: aarch64
+            boost_install_dir: /tmp/boost
           - os: windows-latest
             toolset: msvc
             platform_version: 2022
             arch: x86
+            boost_install_dir: C:\boost
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +43,7 @@ jobs:
           toolset: ${{ matrix.toolset }}
           platform_version: ${{ matrix.platform_version }}
           arch: ${{ matrix.arch }}
+          boost_install_dir: ${{ matrix.boost_install_dir }}
 
       - name: Configure
         shell: pwsh
