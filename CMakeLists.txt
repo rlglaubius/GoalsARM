@@ -5,6 +5,9 @@ project(GoalsARM VERSION 1.0.0
                  LANGUAGES CXX)
 add_library(GoalsARM INTERFACE)
 
+# Set this policy so we can use BOOST_ROOT env
+# var on CI
+cmake_policy(SET CMP0144 NEW)
 if(POLICY CMP0167)
    # This policy removes FindBoost module
    # in favour of using BoostConfig.cmake files
