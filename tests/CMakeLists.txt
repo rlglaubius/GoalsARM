@@ -20,6 +20,8 @@ if(NOT Catch2_FOUND)
 else()
     message(STATUS "Catch2 found at ${Catch2_INCLUDE_DIRS}")
 endif()
+get_target_property(catch2_includes Catch2 INTERFACE_INCLUDE_DIRECTORIES)
+
 list(POP_BACK CMAKE_MESSAGE_INDENT)
 
 file(GLOB TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -28,6 +30,7 @@ foreach(TEST_FILE ${TEST_SOURCES})
     get_filename_component(TEST_NAME ${TEST_FILE} NAME_WE)
     file(RELATIVE_PATH FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR} ${TEST_FILE})
     add_executable(${TEST_NAME} ${FILE_NAME})
+    target_include_directories(Catch2 SYSTEM INTERFACE ${catch2_includes})
     target_link_libraries(${TEST_NAME} PRIVATE GoalsARM Catch2::Catch2WithMain)
 endforeach()
 
