@@ -16,7 +16,7 @@ if(POLICY CMP0167)
    cmake_policy(SET CMP0167 OLD)
 endif()
 find_package(Boost 1.82 REQUIRED)
-target_include_directories(GoalsARM INTERFACE ${Boost_INCLUDE_DIRS})
+target_include_directories(GoalsARM SYSTEM INTERFACE ${Boost_INCLUDE_DIRS})
 
 # Add library
 target_include_directories(GoalsARM

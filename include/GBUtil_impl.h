@@ -19,6 +19,23 @@ bool contains(const std::string &str, const std::string &sub) {
   return str.find(sub) != std::string::npos;
 }
 
+// This is pretty gross but quality of floats raises an error as check will often
+// fail due to machine precision. Better to check with some epsilon. But we have
+// a special case here where something is initialized to 0.0, and
+// we want to check for exact equality to that, so an == 0.0 is appropriate
+// turn off the warnings for this single line.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma warning(push)
+#pragma warning(disable : 4723)
+template <typename T>
+bool isZero(T x) {
+    static_assert(std::is_floating_point<T>::value, "isZero can only be used with floating-point types.");
+    return x == 0;
+}
+#pragma warning(pop)
+#pragma GCC diagnostic pop
+
 } // end namespace GB
 
 #endif // GBUTIL_IMPL_H
