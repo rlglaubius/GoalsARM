@@ -18,13 +18,16 @@ jobs:
         include:
           - os: ubuntu-latest
             toolset: gcc
-            platform_version: 24.04
+            platform_version: 22.04
+            arch: x86
           - os: macos-latest
             toolset: clang
-            platform_version: 14.7
+            platform_version: 14
+            arch: aarch64
           - os: windows-latest
             toolset: msvc
             platform_version: 2022
+            arch: x86
 
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +39,7 @@ jobs:
           boost_version: 1.85.0
           toolset: ${{ matrix.toolset }}
           platform_version: ${{ matrix.platform_version }}
+          arch: ${{ matrix.arch }}
 
       - name: Configure
         shell: pwsh
