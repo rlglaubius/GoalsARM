@@ -19,7 +19,7 @@ bool contains(const std::string &str, const std::string &sub) {
   return str.find(sub) != std::string::npos;
 }
 
-// This is pretty gross but quality of floats raises an error as check will often
+// This is pretty gross but equality of floats raises an error as check will often
 // fail due to machine precision. Better to check with some epsilon. But we have
 // a special case here where something is initialized to 0.0, and
 // we want to check for exact equality to that, so an == 0.0 is appropriate
