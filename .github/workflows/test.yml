@@ -47,7 +47,7 @@ jobs:
 
       - name: Configure
         shell: pwsh
-        run: cmake "--preset=ci-$("${{ matrix.os }}".split("-")[0])"
+        run: cmake --preset=ci
         env:
           BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
 

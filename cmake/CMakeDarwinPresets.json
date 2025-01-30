@@ -1,0 +1,44 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 30,
+        "patch": 0
+    },
+    "include": [
+        "CMakeCommonPresets.json"
+    ],
+    "configurePresets": [
+        {
+            "name": "flags-appleclang",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_CXX_FLAGS": "-fstack-protector-strong -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wcast-qual -Wformat=2 -Wundef -Werror=float-equal -Wshadow -Wcast-align -Wunused -Wnull-dereference -Wdouble-promotion -Wimplicit-fallthrough -Wextra-semi -Woverloaded-virtual -Wnon-virtual-dtor -Wold-style-cast"
+            }
+        },
+        {
+            "name": "ci-darwin",
+            "inherits": [
+                "flags-appleclang",
+                "ci-std"
+            ],
+            "generator": "Xcode",
+            "hidden": true
+        },
+        {
+            "name": "default",
+            "inherits": [
+                "ci-build",
+                "ci-darwin",
+                "dev-mode"
+            ]
+        },
+        {
+            "name": "ci",
+            "inherits": [
+                "default",
+                "ci-multi-config"
+            ]
+        }
+    ]
+}

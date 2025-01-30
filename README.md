@@ -12,40 +12,39 @@ HIV transmission dynamic model
 
 ### Build with CMake
 
-First configure the project
+This project uses [CMake](https://cmake.org/) & [CMakePresets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) to manage different builds. CMake can manage several stages of dev lifecyle. We will use it to manage configure, build & test. 
+* `configure` generates build system files (Makefiles, Ninja files or VS project files) in the `build` directory, and locates dependencies. It does not compile any code.
+*  `build` this compiles the code and produces outputs (executables, libraries). This will invoke the appropriate build tool (make, ninja or msbuild).
+*  `test` runs tests with `ctest`.
+
+We have the following presets configured for each stage
+* Configure
+    * default
+    * ci
+* build
+    * debug
+    * release
+* test
+    * debug
+    * release
+
+You can use these as follows
+
 ```console
-cmake -S . -B build
+# Configure
+cmake --preset=default
+# Build
+cmake --build --preset=debug
+# Test
+ctest --preset=debug
 ```
-
-This resolves dependencies and generates build system files (Makefiles, Ninja files or VS project files) in the `build` directory. It doesn't compile any code. Then build the project
-
-```console
-cmake --build build
-```
-
-This compiles the code and produces outputs (executables, libraries). This will invoke the appropriate build tool (make, ninja or msbuild).
 
 Note you only need to re-run the configuration step if you modify CMakeLists.txt, or want to set some CMake variable like the build type. If you have just updated source code, just running `cmake --build build` should be enough.
 
-To exclude compiling test code add
-```console
-cmake -S . -B build -DGOALS_BUILD_TESTING=off --fresh
-cmake --build build
-```
-
-Note that if switching between version with tests and without tests, you'll need to reconfigure with the `--fresh` command to ensure that CMake doesn't use cached files.
-
-Note also, when building with testing turned off nothing is going to be compiled, this is a header only library and so this will only fetch dependencies and export a target so this can be compiled downstream.
 
 ### Testing
 
-```console
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build
-```
-
-To add a new test, you can extend the existing `tests/tests.cpp` or any new file within the `tests` directory with the `.cpp` extension will be picked up automatically.
+Testing uses [Catch2](https://github.com/catchorg/Catch2) and is run via ctest. To add a new test, you can extend the existing `tests/tests.cpp` or any new file within the `tests` directory with the `.cpp` extension will be picked up automatically.
 
 ### IDE integration
 
@@ -58,8 +57,10 @@ Should work with CMake out of the box.
 * Install C/C++ extension from Microsoft
 * Install CMake Tools extension from Microsoft
 
-1. Open the project in VSCode, you should be prompted to "Select a Kit for GoalsARM". A kit is the toolchain for compiling your project. You can select a specific kit or "unspecified" to let CMake decide for you.
-1. (Optionally) Select a variant. VSCode will make several build variants avaialble to you, `Debug`, `Release`, `MinRelSize`, `RelWithDebInfo`. `Debug` disables optimisations and includes debug info and should be selected by default. You can select one of the others using Ctrl+Shift+P and running `CMake: Select Variant`. 
-1. You should see VSCode compiling your code automatically. It will create a `build` directory with generated files and compiled code.
+1. At the time of writing, VSCode's CMake extension does not [pick up env variables in preset config](https://github.com/microsoft/vscode-cmake-tools/issues/4253), so we need to work around it. Copy the `cmake/CMakeUserPresets.json` from the `cmake` directory into the root. User presets are a CMake tool for individual users to write specific overrides of configuration in `CMakePresets.json`. Copy the file over, and in the `inherit` block ensure that this is inheriting from the correct presets for your system `cmake/CMakeWindowsPresets.json` on Windows.
+1. Open the project in VSCode.
+1. Specify the configure "preset" by opening command palette (Ctrl+Shift+P) and running "CMake: Select Configure Preset" and select "default".
+1. You should see VSCode compiling your code automatically. It will create a `build` directory with generated files and compiled code. You can turn off automatic compilation and do it manually if you prefer.
+1. (Optionally) Select the build & test presets by using command palette and running "CMake: Select Build Preset" and "CMake: Select Test Preset". Choose either "vscode-debug", to build with debug symbols and no optimisation, or "vscode-release" to build with optimisation and without debug symbols. For most uses you probably want the "vscode-debug" build. It will work without selecting one of these presets, and will build in debug mode.
 1. You should now be able to build and debug by using the "Build" and "Debug" buttons in the bottom bar of VSCode. Note that any compilation buttons shown in the top right won't work as these are not being compiled using the CMake configuration.
 1. You should be able to run individual tests from the testing tab, but to debug from the testing tab you'll need to add a [launch.json](https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md#debug-using-a-launchjson-file).

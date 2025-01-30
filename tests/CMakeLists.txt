@@ -31,6 +31,11 @@ foreach(TEST_FILE ${TEST_SOURCES})
     file(RELATIVE_PATH FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR} ${TEST_FILE})
     add_executable(${TEST_NAME} ${FILE_NAME})
     target_include_directories(Catch2 SYSTEM INTERFACE ${catch2_includes})
+    # Suppress warnings for Catch2 when using MSVC
+    if (MSVC)
+        # Per-target suppression (better)
+        set_target_properties(Catch2 PROPERTIES COMPILE_OPTIONS "/w")
+    endif() 
     target_link_libraries(${TEST_NAME} PRIVATE GoalsARM Catch2::Catch2WithMain)
 endforeach()
 

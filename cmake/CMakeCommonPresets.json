@@ -1,0 +1,56 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 30,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "cmake-pedantic",
+            "hidden": true,
+            "warnings": {
+                "dev": true,
+                "deprecated": true,
+                "uninitialized": true,
+                "unusedCli": true,
+                "systemVars": false
+            },
+            "errors": {
+                "dev": true,
+                "deprecated": true
+            }
+        },
+        {
+            "name": "dev-mode",
+            "hidden": true,
+            "inherits": "cmake-pedantic",
+            "cacheVariables": {
+                "GOALS_BUILD_TESTING": "ON"
+            }
+        },
+        {
+            "name": "ci-std",
+            "description": "This preset makes sure the project actually builds with at least the specified standard",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_CXX_EXTENSIONS": "OFF",
+                "CMAKE_CXX_STANDARD": "20",
+                "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+            }
+        },
+        {
+            "name": "ci-build",
+            "binaryDir": "${sourceDir}/build",
+            "hidden": true
+        },
+        {
+            "name": "ci-multi-config",
+            "description": "Speed up multi-config generators by generating only one configuration instead of the defaults",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_CONFIGURATION_TYPES": "Release"
+            }
+        }
+    ]
+}
