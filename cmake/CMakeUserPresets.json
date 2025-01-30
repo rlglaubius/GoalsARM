@@ -1,0 +1,41 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "include": [
+        "cmake/CMakeWindowsPresets.json"
+    ],
+    "buildPresets": [
+        {
+            "name": "vscode-debug",
+            "configurePreset": "default",
+            "configuration": "Debug"
+        },
+        {
+            "name": "vscode-release",
+            "configurePreset": "default",
+            "configuration": "Release"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "vscode-debug",
+            "configurePreset": "default",
+            "configuration": "Debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "vscode-release",
+            "configurePreset": "default",
+            "configuration": "Release",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}
