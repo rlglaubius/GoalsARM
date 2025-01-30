@@ -35,6 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: seanmiddleditch/gha-setup-ninja@master
+        if: runner.os == 'Linux'
+
       - name: Install boost
         uses: MarkusJx/install-boost@v2
         id: install-boost
