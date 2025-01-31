@@ -148,7 +148,7 @@ namespace DP {
 		double denom(cdf(dist, DP::N_AGE_ADULT - 1)); // exclude 80+
 		for (int age(0); age < DP::N_AGE_ADULT - 1; ++age)
 			dat.keypop_age_dist(sex, age, pop, (cdf(dist, age+1) - cdf(dist, age)) / denom);
-		dat.keypop_age_dist(sex, DP::AGE_ADULT_MAX, 0.0);
+		dat.keypop_age_dist(sex, DP::N_AGE_ADULT - 1, pop, 0.0);
 	}
 
 	template<typename popsize_t>
