@@ -1536,6 +1536,7 @@ namespace DP {
 	double Projection::calc_births_hiv_exposed(const int t, const array2d_t& females, array2d_ref_t& births) {
 		int b, h;
 		double frr_hiv[N_HIV_ADULT], frr_art, asfr, pop, hiv;
+		double births_all(0.0), births_hiv(0.0), births_neg(0.0);
 
 		for (b = 0; b < DP::N_AGE_BIRTH; ++b) {
 			asfr = dat.tfr(t) * dat.pasfrs(t, b + DP::AGE_BIRTH_MIN);
@@ -1557,8 +1558,11 @@ namespace DP {
 			for (h = DP::HIV_ADULT_MIN; h <= DP::HIV_ADULT_MAX; ++h)
 				births[b][h] = asfr * pop * frr_hiv[h] * females[b][h] / (females[b][PREG_NEG] + hiv);
 			births[b][PREG_NEG] = asfr * pop * females[b][PREG_NEG] / (females[b][PREG_NEG] + hiv);
+			births_neg += births[b][PREG_NEG];
 		}
-		return std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
+		births_all = std::accumulate(births.data(), births.data() + births.num_elements(), 0.0);
+		births_hiv = births_all - births_neg;
+		return births_hiv;
 	}
 
 	/// @param females input 35x10 array of reproductive age women by age and HIV state. see tally_reproductive_age_females.

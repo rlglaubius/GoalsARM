@@ -288,7 +288,10 @@ namespace DP {
 
 	const int N_MTCT_CD4 = MTCT_CD4_MAX - MTCT_CD4_MIN + 1;
 
-	// Constants used to index pregnant women by HIV status
+	// Constants used to index pregnant women by HIV status. This includes
+	// women off ART by CD4 categories HIV_PRIMARY..HIV_000_050 plus women
+	// with HIV on ART (PREG_ART), women without HIV (PREG_NEG), and women
+	// who newly acquire HIV (PREG_NEW)
 	enum pregnant_women_t {
 		PREG_HIV = HIV_ADULT_MIN,     // HIV+ pregnant women not on ART (aligns with HIV_PRIMARY)
 		PREG_ART = HIV_ADULT_MAX + 1, // HIV+ pregnant women on ART

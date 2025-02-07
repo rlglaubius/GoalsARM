@@ -116,23 +116,28 @@ TEST_CASE("test births", "[births]") {
 TEST_CASE("test births HIV exposed", "[births]") {
 	constexpr int year_first(1970), year_final(1971), num_years(2);
 	constexpr double target_births(26895), tolerance(0.5);
-	double births_exposed, births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT + 1)];
+	double births_exposed;
 
-	DP::array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT + 2]);
-	DP::array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT + 1]);
+	DP::array2d_t births_store(boost::extents[DP::N_AGE_BIRTH][DP::N_PREG]);
+	DP::array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_PREG]);
+	DP::array2d_ref_t births(births_store.data(), boost::extents[DP::N_AGE_BIRTH][DP::N_PREG]);
 
 	boost::multi_array<double, 3> child_neg(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD]);
 	boost::multi_array<double, 5> child_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_CHILD][DP::N_HIV][DP::N_DTX]);
 	boost::multi_array<double, 4> adult_neg(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP]);
 	boost::multi_array<double, 6> adult_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE_ADULT][DP::N_POP][DP::N_HIV][DP::N_DTX]);
+	DP::year_sex_age_pop_t new_hiv(boost::extents[num_years][DP::N_SEX_MC][DP::N_AGE][DP::N_POP]);
 
+	std::fill_n(births_store.data(), births_store.num_elements(), 0.0);
 	std::fill_n(child_neg.data(), child_neg.num_elements(), 0.0);
 	std::fill_n(child_hiv.data(), child_hiv.num_elements(), 0.0);
 	std::fill_n(adult_neg.data(), adult_neg.num_elements(), 0.0);
 	std::fill_n(adult_hiv.data(), adult_hiv.num_elements(), 0.0);
+	std::fill_n(new_hiv.data(), new_hiv.num_elements(), 0.0);
 
 	DP::Projection proj(year_first, year_final);
 	proj.pop.share_storage(adult_neg.data(), adult_hiv.data(), child_neg.data(), child_hiv.data());
+	proj.dat.share_new_infections(new_hiv.data());
 	setup_projection(proj);
 
 	proj.tally_reproductive_age_females(year_final - year_first, females);
