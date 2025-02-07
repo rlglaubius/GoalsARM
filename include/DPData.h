@@ -202,10 +202,10 @@ namespace DP {
 		inline void sti_prev(const int t, const int s, const int a, const int r, const double value) {_sti_prev[t][s][a][r] = value;}
 
 		inline double pwid_infection_force(const int t, const int s) const {return (*_pwid_infection_force)[t][s];}
-		inline void pwid_infection_force(const int t, const int s, const double value) {return (*_pwid_infection_force)[t][s] = value;}
+		inline void pwid_infection_force(const int t, const int s, const double value) {(*_pwid_infection_force)[t][s] = value;}
 
 		inline double pwid_needle_sharing(const int t) const {return (*_pwid_needle_sharing)[t];}
-		inline void pwid_needle_sharing(const int t, const double value) {return (*_pwid_needle_sharing)[t] = value;}
+		inline void pwid_needle_sharing(const int t, const double value) {(*_pwid_needle_sharing)[t] = value;}
 
 		inline double hiv_dist(const int s, const int a, const int h) const {return _hiv_dist[s][a][h];}
 		inline void hiv_dist(const int s, const int a, const int h, const double value) {_hiv_dist[s][a][h] = value;}

@@ -926,8 +926,8 @@ namespace DP {
 		std::fill_n(uptake_rate.data(), uptake_rate.num_elements(), 0.0);
 
 		// Short-circuit uptake calculations if no one is on ART
-		if (dat.art_num_adult( t, DP::FEMALE) == 0.0 && dat.art_num_adult( t, DP::MALE) == 0.0 &&
-			  dat.art_prop_adult(t, DP::FEMALE) == 0.0 && dat.art_prop_adult(t, DP::MALE) == 0.0) {
+		if (GB::isZero(dat.art_num_adult( t, DP::FEMALE)) && GB::isZero(dat.art_num_adult( t, DP::MALE)) &&
+                GB::isZero(dat.art_prop_adult(t, DP::FEMALE)) && GB::isZero(dat.art_prop_adult(t, DP::MALE))) {
 			return;
 		}
 

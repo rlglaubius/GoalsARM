@@ -3,7 +3,7 @@
 
 #include <boost/multi_array.hpp>
 #include <fstream>
-#include <GBUtil.H>
+#include <GBUtil.h>
 
 namespace DP {
 
