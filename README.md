@@ -12,9 +12,10 @@ HIV transmission dynamic model
 
 ### Quickstart with VSCode
 
-If you just want to get developing in the recommended way with Visual Studio Code, follow these steps
-1. Install pre-requisites above and VSCode
-1. Install the [C/C++ extension for VSCode](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) and [CMake Tools extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) 
+If you just want to get developing in the recommended way with Visual Studio Code on Windows, follow these steps
+1. Install pre-requisites above and VSCode.
+1. Install the [C/C++ extension for VSCode](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) and [CMake Tools extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools).
+1. Copy the `cmake/CMakeUserPresets.json` from the `cmake` directory into the root.
 1. Open the project in VSCode. You will be prompted to select a "Preset". If not, do this manually by opening command palette (Ctrl+Shift+P) and running "CMake: Select Configure Preset" and select "default".
 1. You should see VSCode compiling your code automatically. It will create a `build` directory with generated files and compiled code. VSCode will manage when compilation is required.
 1. Create a file `launch.json` inside a directory `.vscode` at the root of this package. And add the contents for your operating system from [here](https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md#debugging-tests). On Windows, this is `msvc`.
