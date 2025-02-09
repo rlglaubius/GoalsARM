@@ -254,6 +254,26 @@ namespace DP {
 		inline double frr_cd4_no_art(const int h) const {return _frr_cd4_no_art[h];}
 		inline void frr_cd4_no_art(const int h, const double value) {_frr_cd4_no_art[h] = value;}
 
+		// Access the number of HIV+ pregnant women receiving PMTCT. Rgimen should be one of MTCT_RX_SDNVP..MTCT_RX_ART_LATE
+		inline double pmtct_num(const int t, const int regimen) const {return _pmtct_num[t][regimen];}
+		inline void pmtct_num(const int t, const int regimen, const double value) {_pmtct_num[t][regimen] = value;}
+
+		// Access the proportion of HIV+ pregnant women receiving PMTCT. Regimen should be one of MTCT_RX_SDNVP..MTCT_RX_ART_LATE
+		inline double pmtct_prop(const int t, const int regimen) const {return _pmtct_prop[t][regimen];}
+		inline void pmtct_prop(const int t, const int regimen, const double value) {_pmtct_prop[t][regimen] = value;}
+
+		// Access the proportion of HIV+ women retained on ART at delivery among those who started ART before their current pregnancy
+		inline double pmtct_retained_art_before(const int t) const {return _pmtct_retained_art_before[t];}
+		inline void pmtct_retained_art_before(const int t, const double value) {_pmtct_retained_art_before[t] = value;}
+
+		// Access the proportion of HIV+ women retained on ART at delivery among those who started ART during their current pregnancy
+		inline double pmtct_retained_art_during(const int t) const {return _pmtct_retained_art_during[t];}
+		inline void pmtct_retained_art_during(const int t, const double value) {_pmtct_retained_art_during[t] = value;}
+
+		// Access the proportion of HIV+ women retained on PMTCT regimens from month-to-month during breastfeeding
+		inline double pmtct_retained_postnatal(const int t, const int regimen, const int month) const {return _pmtct_retained_postnatal[t][regimen][month];}
+		inline void pmtct_retained_postnatal(const int t, const int regimen, const int month, const double value) {_pmtct_retained_postnatal[t][regimen][month] = value;}
+
 		inline double clhiv_agein(const int t, const int s, const int h, const int d) const {return _clhiv_agein[t][s][h][d];}
 		inline void clhiv_agein(const int t, const int s, const int h, const int d, const double value) {_clhiv_agein[t][s][h][d] = value;}
 
@@ -365,6 +385,13 @@ namespace DP {
 		double     _frr_age_on_art[DP::N_AGE_BIRTH]; // fertility rate ratios for women by age when on ART
 		double     _frr_cd4_no_art[DP::N_HIV_ADULT]; // fertility rate ratios for women by CD4 count when not on ART
 
+		// Model inputs - PMTCT coverage and retention
+		array2d_t _pmtct_num;                      // Number of HIV+ pregnant women receiving PMTCT, by regimen
+		array2d_t _pmtct_prop;                     // Number of HIV+ pregnant women receiving PMTCT, by regimen
+		time_series_t _pmtct_retained_art_before;  // Proportion of HIV+ pregnant women retained on ART at delivery among those who initiated before current pregnancy
+		time_series_t _pmtct_retained_art_during;  // Proportion of HIV+ pregnant women retained on ART at delivery among those who initiated during current pregnancy
+		array3d_t _pmtct_retained_postnatal;       // Proportion of HIV+ breastfeeding women retained on PMTCT from month-to-month, by year, regimen, and time since delivery (MTCT_MOS_xx_yy)
+
 		// Model inputs - direct input of 14-year-old CLHIV. Undefined if direct CLHIV input is not used
 		year_sex_hiv_dtx_t _clhiv_agein;
 
@@ -426,6 +453,12 @@ namespace DP {
 			_art_first_eligible_stage_adult(time_series_int_t(year_final - year_start + 1)),
 
 			_frr_age_no_art(year_age_t(boost::extents[year_final - year_start + 1][DP::N_AGE_BIRTH])),
+
+			_pmtct_num(array2d_t(boost::extents[year_final - year_start + 1][DP::N_MTCT_ARV_RX])),
+			_pmtct_prop(array2d_t(boost::extents[year_final - year_start + 1][DP::N_MTCT_ARV_RX])),
+			_pmtct_retained_art_before(time_series_t(year_final - year_start + 1)),
+			_pmtct_retained_art_during(time_series_t(year_final - year_start + 1)),
+			_pmtct_retained_postnatal(array3d_t(boost::extents[year_final - year_start + 1][DP::N_MTCT_ARV_RX][DP::N_MTCT_MOS])),
 
 			_clhiv_agein(year_sex_hiv_dtx_t(boost::extents[year_final - year_start + 1][DP::N_SEX][DP::N_HIV][DP::N_DTX])),
 

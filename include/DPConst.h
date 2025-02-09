@@ -271,10 +271,14 @@ namespace DP {
 		MTCT_RX_INCI       = 9, // incident infection during pregnancy
 
 		MTCT_RX_MIN = 0,
-		MTCT_RX_MAX = 9
+		MTCT_RX_MAX = 9,
+
+		MTCT_RX_ARV_MIN = 0,
+		MTCT_RX_ARV_MAX = 6
 	};
 
-	const int N_MTCT_RX = MTCT_RX_MAX - MTCT_RX_MIN + 1;
+	const int N_MTCT_RX = MTCT_RX_MAX - MTCT_RX_MIN + 1;             // Counts stratifications
+	const int N_MTCT_ARV_RX = MTCT_RX_ARV_MAX - MTCT_RX_ARV_MIN + 1; // Counts stratifications for women receiving ARVs
 
 	// CD4 categories used to distinguish MTCT rates
 	enum mtct_cd4_t {

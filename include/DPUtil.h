@@ -104,6 +104,42 @@ namespace DP {
 	template<typename popsize_t>
 	void set_adult_art_eligibility_from_cd4(ModelData<popsize_t>& dat, time_series_int_ref_t& cd4);
 
+	// Initialize PMTCT coverage and retention
+	template<typename popsize_t>
+	void set_pmtct(
+		ModelData<popsize_t>& dat,
+		array2d_ref_t& pmtct_n,
+		array2d_ref_t& pmtct_p,
+		time_series_ref_t& retained_before,
+		time_series_ref_t& retained_during,
+		array2d_ref_t& retained_postnatal) {
+
+		double retained_art;
+
+		for (int t(0); t < dat.num_years(); ++t)
+			for (int r(MTCT_RX_ARV_MIN); r <= MTCT_RX_ARV_MAX; ++r)
+				for (int m(MTCT_MOS_MIN); m <= MTCT_MOS_MAX; ++m)
+					dat.pmtct_retained_postnatal(t, r, m, 0.0);
+		
+		for (int t(0); t < dat.num_years(); ++t) {
+			for (int r(MTCT_RX_ARV_MIN); r <= MTCT_RX_ARV_MAX; ++r) {
+				dat.pmtct_num(t, r, pmtct_n[t][r]);
+				dat.pmtct_prop(t, r, pmtct_p[t][r]);
+			}
+			dat.pmtct_retained_art_before(t, retained_before[t]);
+			dat.pmtct_retained_art_during(t, retained_during[t]);
+
+			for (int m(MTCT_MOS_02_04); m <= MTCT_MOS_MAX; ++m) {
+				retained_art = (m < MTCT_MOS_12_14) ? retained_postnatal[t][2] : retained_postnatal[t][3];
+				dat.pmtct_retained_postnatal(t, MTCT_RX_OPT_A, m, retained_postnatal[t][0]);
+				dat.pmtct_retained_postnatal(t, MTCT_RX_OPT_B, m, retained_postnatal[t][1]);
+				dat.pmtct_retained_postnatal(t, MTCT_RX_ART_BEFORE, m, retained_art);
+				dat.pmtct_retained_postnatal(t, MTCT_RX_ART_DURING, m, retained_art);
+				dat.pmtct_retained_postnatal(t, MTCT_RX_ART_LATE,   m, retained_art);
+			}
+		}		
+	}
+
 	// Initialize numbers of CLHIV aging in using Spectrum outputs
 	//
 	// @param dat Model data instance to initialize
