@@ -786,9 +786,9 @@ namespace DP {
 
 	void Projection::advance_one_year_hiv_child(const int t) {
 		// TODO: factor into calculation of a) new child infections & b) pediatric HIV dynamics
-		double births_exposed, births_arr[DP::N_AGE_BIRTH * (DP::N_HIV_ADULT+3)];
-		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+3]);
-		array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_HIV_ADULT+3]);
+		double births_exposed, births_arr[DP::N_AGE_BIRTH * (DP::N_PREG)];
+		array2d_t females(boost::extents[DP::N_AGE_BIRTH][DP::N_PREG]);
+		array2d_ref_t births(births_arr, boost::extents[DP::N_AGE_BIRTH][DP::N_PREG]);
 
 		tally_reproductive_age_females(t, females);
 		births_exposed = calc_births_hiv_exposed(t, females, births);
