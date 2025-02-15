@@ -119,7 +119,7 @@ namespace DP {
 		for (int t(0); t < dat.num_years(); ++t)
 			for (int r(MTCT_RX_ARV_MIN); r <= MTCT_RX_ARV_MAX; ++r)
 				for (int m(MTCT_MOS_MIN); m <= MTCT_MOS_MAX; ++m)
-					dat.pmtct_retained_postnatal(t, r, m, 0.0);
+					dat.pmtct_retained_postnatal(t, r, m, 1.0);
 		
 		for (int t(0); t < dat.num_years(); ++t) {
 			for (int r(MTCT_RX_ARV_MIN); r <= MTCT_RX_ARV_MAX; ++r) {

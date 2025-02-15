@@ -1612,35 +1612,12 @@ namespace DP {
 		double incidence, n_stop, p_stop, n_opt_a_b;
 		double mtct_none_perinatal, mtct_none_postnatal, mult_opt_perinatal, mult_opt_postnatal;
 		double mothers[N_MTCT_MOS][N_MTCT_RX];
-		double stop_arv[N_MTCT_MOS][N_MTCT_RX];
+		double n_pmtct[N_MTCT_ARV_RX];
 
-		// Rob Glaubius 2024-08-23: n_mtct and interruption inputs below are hard-coded
-		// for debugging while I seek resolution on some questions about how postnatal
-		// sdNVP, dual ARV, Option A and Option should be handled, which may change how
-		// we organize inputs and define constants for these regimens.
-		const double n_pmtct[N_MTCT][MTCT_RX_ART_LATE - MTCT_RX_SDNVP + 1] = {
-			{2000, 3000, 4000, 5000, 6000, 7000, 8000},
-			{  -1,   -1,    0,    0,   -1,   -1,   -1}};
-
-		const double prop_stop_art_before_perinatal(1.0 - 0.8);
-		const double prop_stop_art_during_perinatal(1.0 - 0.9);
-
-		for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
-			stop_arv[MTCT_MOS_00_02][r] = 0.0; // Transmission is based on ARV status at the start of each 2-month period, so there is no dropout during months [0,2)
-		for (m = MTCT_MOS_02_04; m <= MTCT_MOS_MAX; ++m) {
-			stop_arv[m][MTCT_RX_SDNVP] = 0.000;
-			stop_arv[m][MTCT_RX_DUAL ] = 0.000;
-			stop_arv[m][MTCT_RX_OPT_A] = 0.022;
-			stop_arv[m][MTCT_RX_OPT_B] = 0.018;
-			if (m <= MTCT_MOS_10_12) {
-				stop_arv[m][MTCT_RX_ART_BEFORE] = 0.012;
-				stop_arv[m][MTCT_RX_ART_DURING] = 0.012;
-				stop_arv[m][MTCT_RX_ART_LATE  ] = 0.012;
-			} else {
-				stop_arv[m][MTCT_RX_ART_BEFORE] = 0.007;
-				stop_arv[m][MTCT_RX_ART_DURING] = 0.007;
-				stop_arv[m][MTCT_RX_ART_LATE  ] = 0.007;
-			}
+		// TODO: handle case of PMTCT entered as proportions
+		for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r) {
+			n_pmtct[r] = dat.pmtct_num(t, r);
+			n_moms_arv += n_pmtct[r];
 		}
 
 		// n_moms_cd4 counts HIV+ pregnant women who did not receive prophylaxis
@@ -1655,9 +1632,6 @@ namespace DP {
 
 		for (h = MTCT_CD4_MIN; h <= MTCT_CD4_MAX; ++h)
 			n_moms_hiv += n_moms_cd4[h];
-
-		for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
-			n_moms_arv += n_pmtct[MTCT_PN][r];
 
 		prop_none = 1.0 - n_moms_arv / (n_moms_hiv + n_moms_art + eps); // TODO: something sane if prop_none < 0 or > 1.
 
@@ -1674,7 +1648,7 @@ namespace DP {
 		// Calculate the effectiveness of Option A and B. We assume perinatal
 		// transmission rates double for women on these options with CD4<350
 		// compared to CD4>=350.
-		n_opt_a_b = n_pmtct[MTCT_PN][MTCT_RX_OPT_A] + n_pmtct[MTCT_PN][MTCT_RX_OPT_B] + eps;
+		n_opt_a_b = n_pmtct[MTCT_RX_OPT_A] + n_pmtct[MTCT_RX_OPT_B] + eps;
 		mult_opt_perinatal = (n_opt_a_b > n_moms_cd4[MTCT_CD4_GEQ_350] ? 2.0 - n_moms_cd4[MTCT_CD4_GEQ_350] / n_opt_a_b : 1.0);
 
 		// TODO: we should be able to get rid of this initialization
@@ -1683,13 +1657,13 @@ namespace DP {
 			for (r = MTCT_RX_MIN; r <= MTCT_RX_MAX; ++r)
 				mothers[m][r] = 0.0;
 
-		for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
-			mothers[MTCT_PN][r] = n_pmtct[MTCT_PN][r];
-		mothers[MTCT_PN][MTCT_RX_ART_BEFORE] *= (1.0 - prop_stop_art_before_perinatal);
-		mothers[MTCT_PN][MTCT_RX_ART_DURING] *= (1.0 - prop_stop_art_during_perinatal);
+		for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r)
+			mothers[MTCT_PN][r] = n_pmtct[r];
+		mothers[MTCT_PN][MTCT_RX_ART_BEFORE] *= dat.pmtct_retained_art_before(t);
+		mothers[MTCT_PN][MTCT_RX_ART_DURING] *= dat.pmtct_retained_art_during(t);
 		mothers[MTCT_PN][MTCT_RX_NONE ] = n_moms_hiv * prop_none;
-		mothers[MTCT_PN][MTCT_RX_STOP ] = n_pmtct[MTCT_PN][MTCT_RX_ART_BEFORE] * prop_stop_art_before_perinatal
-			                              + n_pmtct[MTCT_PN][MTCT_RX_ART_DURING] * prop_stop_art_during_perinatal;
+		mothers[MTCT_PN][MTCT_RX_STOP ] = n_pmtct[MTCT_RX_ART_BEFORE] * (1.0 - dat.pmtct_retained_art_before(t))
+			                            + n_pmtct[MTCT_RX_ART_DURING] * (1.0 - dat.pmtct_retained_art_during(t));
 
 		// Calculate the number of women who acquire HIV during pregnancy. This differs
 		// slighly from AIM as of 2024-09-03. AIM calculates an average incidence rate
@@ -1726,22 +1700,22 @@ namespace DP {
 			discount = (m == MTCT_MOS_00_02 ? 0.25 : 1.00); // Transmissions in the first six weeks of life are baked into the perinatal transmission rates
 
 			n_stop = 0.0;
-			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r) {
-				p_stop = 2.0 * stop_arv[m][r];
+			for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r) {
+				p_stop = 2.0 * (1.0 - dat.pmtct_retained_postnatal(t, r, m));
 				n_stop += mothers[m-1][r] * p_stop;
 			}
 
 			n_moms_neg -= mothers[m-1][MTCT_RX_INCI]; // subtract women who acquired HIV from those who remain at risk
 
-			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r) {
-				p_stop = 2.0 * stop_arv[m][r];
+			for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r) {
+				p_stop = 2.0 * (1.0 - dat.pmtct_retained_postnatal(t, r, m));
 				mothers[m][r] = mothers[m-1][r] * (1.0 - p_stop) - infections[m-1][r];
 			}
 			mothers[m][MTCT_RX_NONE] = mothers[m-1][MTCT_RX_NONE] - infections[m-1][MTCT_RX_NONE];
 			mothers[m][MTCT_RX_STOP] = mothers[m-1][MTCT_RX_STOP] - infections[m-1][MTCT_RX_STOP] + n_stop;
 			mothers[m][MTCT_RX_INCI] = n_moms_neg * incidence;
 
-			for (r = MTCT_RX_SDNVP; r <= MTCT_RX_ART_LATE; ++r)
+			for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r)
 				infections[m][r] = mothers[m][r] * discount * dat.breastfeeding(t, BF_ON_ARV, m) * 2.0 * dat.mtct_rate(MTCT_BF, r, DP::MTCT_CD4_MIN);
 			infections[m][MTCT_RX_NONE] = mothers[m][MTCT_RX_NONE] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
 			infections[m][MTCT_RX_STOP] = mothers[m][MTCT_RX_STOP] * discount * dat.breastfeeding(t, BF_OFF_ARV, m) * 2.0 * mtct_none_postnatal;
