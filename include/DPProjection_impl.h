@@ -1570,37 +1570,10 @@ namespace DP {
 	/// @param infections output 19x10 array of new child infections timing (perinatal, [0,2), [2,4), ..., [34,36) months and PMTCT regimen (MTCT_RX_SDNVP..MTCT_RX_INCI)
 	/// 
 	// TODO:
-	// Tablesetting
-	// [x] Expose this calculation to Python to simplify cross-checking against mtct-calc-2024-08-19.xlsx
-	// [x] Add an example tab in mtct-calc-2024-08-19.xlsx that includes ART, check against Delphi (mtct-experimental branch, moz-aim2024-636-modBF.pjnz)
-	// Preprocessing
 	// [ ] If PMTCT entered as %, use PMTCT need (# births to HIV+ women) to convert these to absolute numbers.
 	// [ ] If PMTCT entered as #, check if prenatal regimens exceed need. If so, rescale numbers to match need.
-	// [x] Calculate HIV incidence in pregnant women.
-	// [x] Calculate MTCT rates for women off ART based on CD4 counts in HIV+ mothers not on ART
-	// [x] Calculate MTCT rates for women on prenatal Option A and Option B, accounting for overflow of mothers with CD4>350
 	// [ ] Calculate MTCT rates for women on postnatal Option A and Option B, accounting for overflow of mothers with CD4>350
-	// Calculation
-	// [x] Calculate vertical transmission at delivery by regimen
-	// [x] Calculate number of mothers who have not transmitted at delivery by regimen
-	// [x] Calculate number of mothers who have not transmitted at k\in{2,4,...,36} months since delivery by regimen
-	// [x] Use breastfeeding inputs on or off ART to calculate transmissions from mothers who have not yet transmitted
-	// [ ] Remove mothers[m][r] initialization loop if feasible
 	// [ ] Insert new child infections into the population
-	// Regimen checklist:
-	// [x] MTCT_RX_SDNVP			[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_DUAL				[x] MTCT_PN [x] MTCT_BF
-	// [ ] MTCT_RX_OPT_A			[x] MTCT_PN [ ] MTCT_BF
-	// [ ] MTCT_RX_OPT_B			[x] MTCT_PN [ ] MTCT_BF
-	// [x] MTCT_RX_ART_BEFORE	[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_ART_DURING	[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_ART_LATE		[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_NONE				[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_STOP				[x] MTCT_PN [x] MTCT_BF
-	// [x] MTCT_RX_INCI				[x] MTCT_PN [x] MTCT_BF (this uses age-specific incidence and age-specific births where AIM uses age-averaged incidence and total births to HIV- women)
-	// Checking
-	// [x] Verify against 2000 Mozambique testcase ("TestCase1") [caveat: recheck after discussing Option A and B]
-	// [ ] Verify against 2022 Mozambique testcase ("TestCase2")
 	void Projection::calc_child_infections(const int t, const array2d_t& females, const array2d_ref_t& births, array2d_ref_t& infections) {
 		const double pregnancy_duration(9.0 / 12.0);
 
@@ -1614,7 +1587,6 @@ namespace DP {
 		double mothers[N_MTCT_MOS][N_MTCT_RX];
 		double n_pmtct[N_MTCT_ARV_RX];
 
-		// TODO: handle case of PMTCT entered as proportions
 		for (r = MTCT_RX_ARV_MIN; r <= MTCT_RX_ARV_MAX; ++r) {
 			n_pmtct[r] = dat.pmtct_num(t, r);
 			n_moms_arv += n_pmtct[r];
